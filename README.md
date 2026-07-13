@@ -3,6 +3,9 @@
 방해앱을 차단하고 수달과 함께 집중하는 **공부 타이머 앱**의 Next.js 웹앱 프로토타입입니다.
 Miro 서비스 블루프린트의 **온보딩 순서**와 `D_Otter` Figma 디자인을 그대로 따릅니다.
 
+> 🌐 **라이브 데모: https://do-otter.vercel.app** (Supabase 연결됨)
+> GitHub 저장소가 Vercel에 연결되어 있어 `main` 에 push하면 자동 배포됩니다.
+
 ## 온보딩 플로우 (블루프린트 순서 그대로)
 
 ```
