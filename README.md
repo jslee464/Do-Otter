@@ -28,6 +28,16 @@ Miro 서비스 블루프린트의 **온보딩 순서**와 `D_Otter` Figma 디자
 - **유해앱 알람 티어**: 세션 중 딴짓 → 마일드("조금만 봐~") → 강력("이제 그만 봐!") → 복귀 칭찬("잘~했어!!")
 - **AI 코멘트**: v1 규칙 기반(if-else) 피드백
 
+## 🤖 수달이 AI (DeepSeek LLM)
+
+- **홈에서 수달이 터치** → 상황 맞춤형 한 문장 멘트를 매번 새로 생성 (`/api/otter-line`)
+- **상단바 수달 얼굴 버튼** → 수달이와 **1:1 채팅** (`/api/chat`), 대화 기록 저장(`chat_messages`)
+- LLM에 넘기는 컨텍스트: 이름·레벨·스트릭, 오늘/최근 7일 순공시간, 방해앱 사용 횟수·시간, 누적 순공/스톱/외부앱 시간, 가장 임박한 D-day, 전체 일정, 최근 대화 내역
+- ⚠️ **DeepSeek 키는 서버(`app/api/*`)에서만** 사용합니다. 클라이언트 번들·GitHub에 노출되지 않아요.
+  - 로컬: `.env.local` 의 `DEEPSEEK_API_KEY` (NEXT_PUBLIC 아님)
+  - Vercel: 서버 전용 환경변수로 등록됨
+  - 키가 없으면 규칙 기반 폴백 문구로 동작 (앱 안 깨짐)
+
 ## 백엔드에 기록되는 것 (요청하신 로그)
 
 | 항목 | 저장 위치 (`user_stats`) |
@@ -60,7 +70,8 @@ npm run dev        # http://localhost:3000
 ## Supabase 연결 (3단계)
 
 1. **DB 테이블 만들기** — Supabase 대시보드 > SQL Editor 에서 [`supabase/schema.sql`](supabase/schema.sql) 전체를 붙여넣고 **RUN**.
-   (profiles / user_stats / study_logs / blocked_apps / consents 테이블 + RLS + 회원가입 트리거 생성)
+   (profiles / user_stats / study_logs / schedules / achievements / **chat_messages** / blocked_apps / consents + RLS + 트리거)
+   > 스키마가 업데이트되었으니 **다시 한 번 RUN** 해주세요(재실행 안전). 그래야 채팅 기록·수달 커스텀 아이템이 서버에 저장됩니다. 안 해도 앱은 정상 작동(해당 데이터만 세션 내 임시 유지).
 
 2. **이메일 확인 끄기** — Authentication > Providers > Email 에서 **"Confirm email" 을 OFF**.
    (아이디는 `아이디@dootter.local` 형태의 가짜 이메일로 매핑되므로 확인 메일을 받을 수 없어요. 반드시 꺼야 즉시 로그인됩니다.)
