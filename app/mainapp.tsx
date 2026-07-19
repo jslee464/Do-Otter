@@ -1,20 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  addChat,
   addSchedule,
   addSessionLog,
   backendMode,
   deleteSchedule,
+  getChat,
   getSchedules,
   getSessionLogs,
   loadState,
   saveState,
   signOut,
+  type ChatRow,
   type ScheduleEvent,
   type SessionLog,
   type UserState,
 } from "../lib/backend";
+import type { OtterContext } from "../lib/llm";
 import {
   ACHIEVEMENTS,
   aiComment,
@@ -58,6 +69,39 @@ function todayStr() {
   return dstr(new Date());
 }
 
+// TopBar에서 채팅 열기 위한 context (프롭 드릴링 방지)
+const OpenChat = createContext<() => void>(() => {});
+
+// Supabase 통계/일정 → LLM 컨텍스트
+function buildContext(
+  state: UserState,
+  logs: SessionLog[],
+  schedules: ScheduleEvent[]
+): OtterContext {
+  const now = Date.now();
+  const last7 = logs.filter((l) => l.at >= now - 7 * 86400000);
+  const withDday = schedules.map((s) => ({
+    title: s.title,
+    dday: calcDday(s.eventDate),
+  }));
+  const upcoming = withDday.filter((s) => s.dday >= 0).sort((a, b) => a.dday - b.dday);
+  return {
+    username: state.username,
+    level: levelState(state.totalExp).level,
+    streak: state.streak,
+    todayEffectiveMin: Math.round(state.todayEffectiveSec / 60),
+    todayHarmfulMin: Math.round(state.todayHarmfulSec / 60),
+    last7StudyMin: Math.round(last7.reduce((a, l) => a + l.effectiveSec, 0) / 60),
+    last7HarmfulCount: last7.filter((l) => l.harmfulSec > 0).length,
+    last7HarmfulMin: Math.round(last7.reduce((a, l) => a + l.harmfulSec, 0) / 60),
+    totalEffectiveMin: Math.round(state.effectiveSeconds / 60),
+    totalStopMin: Math.round(state.stopSeconds / 60),
+    totalHarmfulMin: Math.round(state.harmfulSeconds / 60),
+    nearestDday: upcoming[0] ?? null,
+    schedules: withDday,
+  };
+}
+
 const TIME_OPTIONS = [
   { label: "20분", min: 20 },
   { label: "50분", min: 50 },
@@ -97,6 +141,13 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
   const [outcome, setOutcome] = useState<SessionOutcome | null>(null);
   const [oops, setOops] = useState(false);
   const finishRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 수달이 LLM (챗봇 + 홈 터치 멘트)
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMsgs, setChatMsgs] = useState<ChatRow[]>([]);
+  const [chatBusy, setChatBusy] = useState(false);
+  const [tapLine, setTapLine] = useState<string | null>(null);
+  const [tapBusy, setTapBusy] = useState(false);
 
   async function refresh() {
     setState(await loadState());
@@ -140,6 +191,66 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
   }, [studySec, phase, targetMin]);
 
   const lv = state ? levelState(state.totalExp) : { level: 1, currentExp: 0, nextReq: 60 };
+
+  // ---- 수달이 LLM ----
+  async function openChat() {
+    setChatOpen(true);
+    setChatMsgs(await getChat());
+  }
+
+  async function sendChat(text: string) {
+    if (!state || chatBusy) return;
+    const userMsg: ChatRow = { role: "user", content: text, at: Date.now() };
+    const nextMsgs = [...chatMsgs, userMsg];
+    setChatMsgs(nextMsgs);
+    setChatBusy(true);
+    addChat("user", text);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          context: buildContext(state, logs, schedules),
+          messages: nextMsgs.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      });
+      const data = await res.json();
+      const reply: ChatRow = {
+        role: "assistant",
+        content: data.reply || "음… 다시 말해줄래?",
+        at: Date.now(),
+      };
+      setChatMsgs((m) => [...m, reply]);
+      addChat("assistant", reply.content);
+    } catch {
+      setChatMsgs((m) => [
+        ...m,
+        { role: "assistant", content: "앗, 연결이 잠깐 끊겼어. 다시 보내줄래?", at: Date.now() },
+      ]);
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
+  async function tapOtter() {
+    if (!state || tapBusy) return;
+    setTapBusy(true);
+    setTapLine("음…");
+    try {
+      const res = await fetch("/api/otter-line", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildContext(state, logs, schedules)),
+      });
+      const data = await res.json();
+      setTapLine(data.line || "오늘도 화이팅! 🦦");
+    } catch {
+      setTapLine("오늘도 같이 공부하자! 🦦");
+    } finally {
+      setTapBusy(false);
+      setTimeout(() => setTapLine(null), 6000); // 6초 후 원래 말풍선으로
+    }
+  }
 
   /* ---------- session control ---------- */
   function startSelecting() {
@@ -387,6 +498,7 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
   }
 
   return (
+    <OpenChat.Provider value={openChat}>
     <div className="screen">
       <div className="notch" />
       <StatusBar />
@@ -408,6 +520,8 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
           stopDown={stopDown}
           stopUp={stopUp}
           equipped={state.equippedItems}
+          onTapOtter={tapOtter}
+          tapLine={tapLine}
         />
       )}
       {tab === "calendar" && (
@@ -450,8 +564,19 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
       {outcome && <CongratsOverlay o={outcome} onClose={closeOutcome} />}
       {oops && <OopsOverlay onClose={() => setOops(false)} />}
 
+      {chatOpen && (
+        <ChatView
+          username={state.username}
+          msgs={chatMsgs}
+          busy={chatBusy}
+          onSend={sendChat}
+          onClose={() => setChatOpen(false)}
+        />
+      )}
+
       <BottomNav tab={tab} setTab={setTab} />
     </div>
+    </OpenChat.Provider>
   );
 }
 
@@ -471,6 +596,7 @@ function StatusBar() {
 
 type LV = { level: number; currentExp: number; nextReq: number };
 function TopBar({ state, lv }: { state: UserState; lv: LV }) {
+  const openChat = useContext(OpenChat);
   const xp = `${Math.round((lv.currentExp / lv.nextReq) * 100)}%`;
   return (
     <>
@@ -479,6 +605,9 @@ function TopBar({ state, lv }: { state: UserState; lv: LV }) {
           <span className="shell">🐚</span>
           {state.shells.toLocaleString()}
         </div>
+        <button className="bell" aria-label="알림">
+          🔔
+        </button>
       </div>
       <div className="level-row">
         <div className="level-pill">
@@ -487,7 +616,10 @@ function TopBar({ state, lv }: { state: UserState; lv: LV }) {
             <div className="level-fill" style={{ ["--xp" as string]: xp }} />
           </div>
         </div>
-        <div className="bell">🔔</div>
+        <button className="otter-chat-btn" onClick={openChat} aria-label="수달이와 채팅">
+          <img src={`${IMG}/face_happy.png`} alt="수달이" />
+          <span className="chat-dot" />
+        </button>
       </div>
       <div className="exp-caption">
         EXP {lv.currentExp} / {lv.nextReq}
@@ -501,13 +633,19 @@ function OtterAvatar({
   img,
   equipped,
   children,
+  onClick,
 }: {
   img: string;
   equipped: string[];
   children?: React.ReactNode;
+  onClick?: () => void;
 }) {
   return (
-    <div className="avatar">
+    <div
+      className={`avatar ${onClick ? "tappable" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+    >
       {children}
       <img src={`${IMG}/${img}`} alt="otter" />
       {equipped.map((id) => {
@@ -545,6 +683,8 @@ function HomeView(p: {
   stopDown: () => void;
   stopUp: () => void;
   equipped: string[];
+  onTapOtter: () => void;
+  tapLine: string | null;
 }) {
   const running = p.phase === "running";
   const active = p.phase === "running" || p.phase === "paused";
@@ -555,16 +695,22 @@ function HomeView(p: {
     : "otter_default1.png";
   const remain =
     p.targetMin > 0 ? Math.max(0, p.targetMin * 60 - p.studySec) : null;
+  const bubbleText = p.tapLine
+    ? p.tapLine
+    : p.harmfulActive
+    ? HARMFUL.strong
+    : p.bubble;
 
   return (
     <div className="view">
       <TopBar state={p.state} lv={p.lv} />
 
       <div className="avatar-wrap">
-        <OtterAvatar img={otter} equipped={p.equipped}>
-          <div className="speech">{p.harmfulActive ? HARMFUL.strong : p.bubble}</div>
+        <OtterAvatar img={otter} equipped={p.equipped} onClick={p.onTapOtter}>
+          <div className="speech">{bubbleText}</div>
         </OtterAvatar>
       </div>
+      <div className="tap-hint">수달이를 톡 건드려봐! 🫧</div>
 
       <div className="timer">{fmt(p.studySec)}</div>
       <div className="mode-tag">
@@ -1160,6 +1306,90 @@ function OopsOverlay({ onClose }: { onClose: () => void }) {
         수달이가 화났어요 · 기록에 남았어요
       </div>
       <button className="continue" onClick={onClose}>계속</button>
+    </div>
+  );
+}
+
+/* ----------------------- CHAT (수달이 챗봇) ----------------------- */
+function ChatView({
+  username,
+  msgs,
+  busy,
+  onSend,
+  onClose,
+}: {
+  username: string;
+  msgs: ChatRow[];
+  busy: boolean;
+  onSend: (t: string) => void;
+  onClose: () => void;
+}) {
+  const [text, setText] = useState("");
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" });
+  }, [msgs, busy]);
+  const quicks = ["오늘 뭐부터 할까?", "집중이 안 돼 😵", "동기부여 해줘", "내 공부 어때?"];
+  function send() {
+    const t = text.trim();
+    if (!t || busy) return;
+    setText("");
+    onSend(t);
+  }
+  return (
+    <div className="chat-screen">
+      <div className="chat-header">
+        <button className="chat-back" onClick={onClose} aria-label="뒤로">
+          ‹
+        </button>
+        <img className="chat-ava" src={`${IMG}/face_happy.png`} alt="수달이" />
+        <div>
+          <div className="chat-name">수달이</div>
+          <div className="chat-status">● 항상 네 곁에 있어</div>
+        </div>
+      </div>
+
+      <div className="chat-body" ref={bodyRef}>
+        {msgs.length === 0 && (
+          <div className="chat-empty">
+            <img src={`${IMG}/otter_default1.png`} width={120} alt="" />
+            <div className="ce-t">안녕 {username}! 🦦</div>
+            <div className="ce-d">공부 고민, 계획, 뭐든 편하게 얘기해봐.</div>
+          </div>
+        )}
+        {msgs.map((m, i) => (
+          <div key={i} className={`chat-bubble ${m.role}`}>
+            {m.content}
+          </div>
+        ))}
+        {busy && (
+          <div className="chat-bubble assistant typing">
+            <span />
+            <span />
+            <span />
+          </div>
+        )}
+      </div>
+
+      <div className="chat-quicks">
+        {quicks.map((q) => (
+          <button key={q} onClick={() => !busy && onSend(q)} disabled={busy}>
+            {q}
+          </button>
+        ))}
+      </div>
+
+      <div className="chat-input">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+          placeholder="수달이에게 말 걸기…"
+        />
+        <button className="chat-send" onClick={send} disabled={busy || !text.trim()}>
+          ↑
+        </button>
+      </div>
     </div>
   );
 }

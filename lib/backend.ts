@@ -403,6 +403,47 @@ function defaultSchedules(): ScheduleEvent[] {
 }
 
 /* =====================================================================
+ *  CHAT (수달이 챗봇 대화 기록)
+ * ===================================================================== */
+export type ChatRow = { role: "user" | "assistant"; content: string; at: number };
+const CHAT_PFX = "dootter_chat_";
+
+export async function getChat(): Promise<ChatRow[]> {
+  if (backendMode === "demo") {
+    const who = await currentUsername();
+    if (!who) return [];
+    return ls<ChatRow[]>(CHAT_PFX + who, []);
+  }
+  const id = await uid();
+  if (!id) return [];
+  const { data } = await supabase!
+    .from("chat_messages")
+    .select("role, content, created_at")
+    .eq("user_id", id)
+    .order("created_at", { ascending: true })
+    .limit(200);
+  return (data ?? []).map((r: any) => ({
+    role: r.role,
+    content: r.content,
+    at: new Date(r.created_at).getTime(),
+  }));
+}
+
+export async function addChat(role: "user" | "assistant", content: string) {
+  if (backendMode === "demo") {
+    const who = await currentUsername();
+    if (!who) return;
+    const arr = ls<ChatRow[]>(CHAT_PFX + who, []);
+    arr.push({ role, content, at: Date.now() });
+    setLs(CHAT_PFX + who, arr.slice(-200));
+    return;
+  }
+  const id = await uid();
+  if (!id) return;
+  await supabase!.from("chat_messages").insert({ user_id: id, role, content });
+}
+
+/* =====================================================================
  *  ONBOARDING 부가 저장 (약관 / 방해앱)
  * ===================================================================== */
 export async function saveConsent(c: Consent): Promise<Result> {

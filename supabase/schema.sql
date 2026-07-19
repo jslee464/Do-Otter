@@ -93,6 +93,16 @@ create table if not exists public.achievements (
   primary key (user_id, ach_id)
 );
 
+-- 5-2) chat_messages : 수달이 챗봇 대화 기록
+create table if not exists public.chat_messages (
+  id          bigint generated always as identity primary key,
+  user_id     uuid references auth.users(id) on delete cascade,
+  role        text not null,           -- 'user' | 'assistant'
+  content     text not null,
+  created_at  timestamptz not null default now()
+);
+create index if not exists chat_user_idx on public.chat_messages(user_id, created_at);
+
 -- 6) blocked_apps / consents (온보딩)
 create table if not exists public.blocked_apps (
   user_id     uuid references auth.users(id) on delete cascade,
@@ -118,6 +128,7 @@ alter table public.user_stats   enable row level security;
 alter table public.study_logs   enable row level security;
 alter table public.schedules    enable row level security;
 alter table public.achievements enable row level security;
+alter table public.chat_messages enable row level security;
 alter table public.blocked_apps enable row level security;
 alter table public.consents     enable row level security;
 
@@ -131,6 +142,8 @@ drop policy if exists "own schedules" on public.schedules;
 create policy "own schedules" on public.schedules for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "own achievements" on public.achievements;
 create policy "own achievements" on public.achievements for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "own chat" on public.chat_messages;
+create policy "own chat" on public.chat_messages for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "own blocked apps" on public.blocked_apps;
 create policy "own blocked apps" on public.blocked_apps for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists "own consents" on public.consents;
