@@ -84,6 +84,7 @@ export async function callDeepseek(
   opts: { maxTokens?: number; temperature?: number } = {}
 ): Promise<string> {
   const key = process.env.DEEPSEEK_API_KEY;
+  const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
   if (!key) throw new Error("NO_KEY");
   const res = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
@@ -92,7 +93,7 @@ export async function callDeepseek(
       Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model: "deepseek-chat",
+      model,
       messages,
       max_tokens: opts.maxTokens ?? 300,
       temperature: opts.temperature ?? 0.9,
