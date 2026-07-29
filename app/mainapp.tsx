@@ -16,6 +16,7 @@ import {
   loadState,
   saveState,
   signOut,
+  startCheckout,
   type ChatRow,
   type ScheduleEvent,
   type SessionLog,
@@ -88,7 +89,31 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
   }
   useEffect(() => {
     refresh();
+    // Stripe 결제 복귀 처리 (?purchase=success|cancel)
+    const params = new URLSearchParams(window.location.search);
+    const pur = params.get("purchase");
+    if (pur) {
+      window.history.replaceState({}, "", window.location.pathname);
+      if (pur === "success") {
+        setAlarm("결제 완료! 구독이 곧 반영돼요 👑");
+        // 웹훅 반영에 약간 시간이 걸릴 수 있어 잠시 후 재조회
+        setTimeout(() => refresh(), 2500);
+      } else if (pur === "cancel") {
+        setAlarm("결제를 취소했어요.");
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function doCheckout(plan: "pro" | "chatpro") {
+    const r = await startCheckout(plan);
+    if (r.ok && r.url) window.location.href = r.url;
+    else if (r.error === "not_configured")
+      setAlarm("결제가 아직 설정되지 않았어요 (관리자 Stripe 키 등록 필요)");
+    else if (r.error === "demo")
+      setAlarm("데모 모드에선 결제를 쓸 수 없어요. Supabase 로그인 후 이용해주세요.");
+    else setAlarm("결제를 시작할 수 없어요. 잠시 후 다시 시도해주세요.");
+  }
 
   // 1초 틱
   useEffect(() => {
@@ -466,6 +491,7 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
             onAd={watchAd}
             onOops={simulateOops}
             onCustomize={() => setTab("character")}
+            onCheckout={doCheckout}
             onSignOut={async () => {
               await signOut();
               onSignOut();

@@ -1992,3 +1992,45 @@ img {
 .chat-send:disabled {
   background: #d8c6a4;
 }
+
+/* ---------- 구독 (Stripe) ---------- */
+.sub-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.sub-info {
+  flex: 1 1 auto;
+}
+.sub-name {
+  font-weight: 800;
+  color: var(--brown-dark);
+  font-size: 15px;
+}
+.sub-desc {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+.sub-btn {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  border-radius: 12px;
+  background: linear-gradient(120deg, #f4d98a, #e9b84f);
+  color: #6b4e21;
+  font-weight: 800;
+  font-size: 13px;
+}
+.sub-btn.chat {
+  background: linear-gradient(120deg, #bd94e0, #9b6fd0);
+  color: #fff;
+}
+.sub-active {
+  flex: 0 0 auto;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--green-deep);
+  padding: 9px 12px;
+}

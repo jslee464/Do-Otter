@@ -14,6 +14,7 @@ export default function SettingsView(p: {
   onAd: () => void;
   onOops: () => void;
   onCustomize: () => void;
+  onCheckout: (plan: "pro" | "chatpro") => void;
   onSignOut: () => void;
 }) {
   const [block, setBlock] = useState(true);
@@ -83,8 +84,42 @@ export default function SettingsView(p: {
       <div className="card">
         <MenuRow ic="🎨" t="수달 커스텀 설정" d="아이템으로 수달이를 꾸며요" onClick={p.onCustomize} />
         <MenuRow ic="😊" t="수달 모드 설정" d="응원형 / 츤데레형 등" />
-        <button className="wide-btn" onClick={p.onAd}>📺 광고 보고 조개 얻기 (+{SHELL.adWatch})</button>
-        <button className="wide-btn pro">👑 Pro 수달 결제 (광고 제거 + 커스텀)</button>
+        {!p.state.isPro && (
+          <button className="wide-btn" onClick={p.onAd}>
+            📺 광고 보고 조개 얻기 (+{SHELL.adWatch})
+          </button>
+        )}
+      </div>
+
+      {/* 구독 */}
+      <div className="section-title">구독</div>
+      <div className="card">
+        <div className="sub-row">
+          <div className="sub-info">
+            <div className="sub-name">👑 Pro 수달</div>
+            <div className="sub-desc">광고 제거 + 커스텀 전체 해제</div>
+          </div>
+          {p.state.isPro ? (
+            <span className="sub-active">이용 중 ✓</span>
+          ) : (
+            <button className="sub-btn" onClick={() => p.onCheckout("pro")}>
+              구독하기
+            </button>
+          )}
+        </div>
+        <div className="sub-row" style={{ borderBottom: "none" }}>
+          <div className="sub-info">
+            <div className="sub-name">💬 수달 Chat Pro</div>
+            <div className="sub-desc">더 똑똑한 수달이 챗봇 (예정)</div>
+          </div>
+          {p.state.isChatPro ? (
+            <span className="sub-active">이용 중 ✓</span>
+          ) : (
+            <button className="sub-btn chat" onClick={() => p.onCheckout("chatpro")}>
+              구독하기
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="section-title">체험하기</div>

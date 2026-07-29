@@ -36,6 +36,8 @@ export type UserState = {
   unlocked: string[];
   ownedItems: string[]; // 수달 커스텀: 보유 아이템
   equippedItems: string[]; // 수달 커스텀: 착용 아이템
+  isPro: boolean; // Pro 수달 구독 중
+  isChatPro: boolean; // 수달 Chat Pro 구독 중
 };
 
 export type ScheduleEvent = {
@@ -83,6 +85,8 @@ export function defaultState(username: string): UserState {
     unlocked: [],
     ownedItems: [],
     equippedItems: [],
+    isPro: false,
+    isChatPro: false,
   };
 }
 
@@ -207,7 +211,16 @@ export async function loadState(): Promise<UserState | null> {
     .select("ach_id")
     .eq("user_id", id);
   const unlocked = (achs ?? []).map((r: any) => r.ach_id);
-  if (!data) return { ...defaultState(who), unlocked };
+  // 구독 상태 (Stripe webhook 이 갱신한 profiles 컬럼)
+  const { data: prof } = await supabase!
+    .from("profiles")
+    .select("pro_until, chatpro_until")
+    .eq("id", id)
+    .single();
+  const now = Date.now();
+  const isPro = !!prof?.pro_until && new Date(prof.pro_until).getTime() > now;
+  const isChatPro = !!prof?.chatpro_until && new Date(prof.chatpro_until).getTime() > now;
+  if (!data) return { ...defaultState(who), unlocked, isPro, isChatPro };
   return {
     username: who,
     totalExp: data.total_exp ?? 0,
@@ -232,6 +245,8 @@ export async function loadState(): Promise<UserState | null> {
     unlocked,
     ownedItems: data.owned_items ?? [],
     equippedItems: data.equipped_items ?? [],
+    isPro,
+    isChatPro,
   };
 }
 
@@ -441,6 +456,30 @@ export async function addChat(role: "user" | "assistant", content: string) {
   const id = await uid();
   if (!id) return;
   await supabase!.from("chat_messages").insert({ user_id: id, role, content });
+}
+
+/* =====================================================================
+ *  STRIPE 결제 (구독) — 서버 라우트 /api/stripe/* 호출
+ * ===================================================================== */
+async function accessToken(): Promise<string | null> {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
+export async function startCheckout(
+  plan: "pro" | "chatpro"
+): Promise<{ ok: boolean; url?: string; error?: string }> {
+  if (backendMode === "demo") return { ok: false, error: "demo" };
+  const t = await accessToken();
+  if (!t) return { ok: false, error: "no_session" };
+  const res = await fetch("/api/stripe/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+    body: JSON.stringify({ plan }),
+  });
+  const d = await res.json();
+  return d.url ? { ok: true, url: d.url } : { ok: false, error: d.error || "failed" };
 }
 
 /* =====================================================================
