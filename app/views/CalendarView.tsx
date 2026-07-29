@@ -14,6 +14,9 @@ export default function CalendarView(p: {
   schedules: ScheduleEvent[];
   onAdd: (t: string, d: string) => void;
   onDelete: (id: string) => void;
+  gcal: { connected: boolean; configured: boolean; busy: boolean };
+  onConnect: () => void;
+  onSync: () => void;
 }) {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(todayStr());
@@ -62,7 +65,35 @@ export default function CalendarView(p: {
             추가
           </button>
         </div>
-        <div className="gcal-mini">📅 구글 캘린더 연동됨 · 자동 동기화</div>
+      </div>
+
+      {/* 구글 캘린더 연동 */}
+      <div className="section-title">구글 캘린더</div>
+      <div className="card gcal-card-row">
+        <div className="gcal-ico">📅</div>
+        <div className="gcal-txt">
+          <div className="gcal-t">Google Calendar</div>
+          <div className="gcal-d">
+            {!p.gcal.configured
+              ? "설정이 필요해요 (관리자 키 등록 전)"
+              : p.gcal.connected
+              ? "연동됨 · 시험·과제 일정을 가져와요"
+              : "연동하면 구글 일정을 자동으로 불러와요"}
+          </div>
+        </div>
+        {p.gcal.connected ? (
+          <button className="gcal-btn sync" onClick={p.onSync} disabled={p.gcal.busy}>
+            {p.gcal.busy ? "동기화 중…" : "동기화"}
+          </button>
+        ) : (
+          <button
+            className="gcal-btn"
+            onClick={p.onConnect}
+            disabled={p.gcal.busy || !p.gcal.configured}
+          >
+            {p.gcal.busy ? "…" : "연동하기"}
+          </button>
+        )}
       </div>
 
       <div className="section-title">등록된 일정</div>

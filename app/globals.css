@@ -1992,3 +1992,43 @@ img {
 .chat-send:disabled {
   background: #d8c6a4;
 }
+
+/* ---------- 구글 캘린더 연동 ---------- */
+.gcal-card-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.gcal-ico {
+  font-size: 26px;
+  flex: 0 0 auto;
+}
+.gcal-txt {
+  flex: 1 1 auto;
+}
+.gcal-t {
+  font-weight: 800;
+  color: var(--brown-dark);
+  font-size: 15px;
+}
+.gcal-d {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.gcal-btn {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  border-radius: 12px;
+  background: var(--brown-mid);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+}
+.gcal-btn.sync {
+  background: var(--green-deep);
+}
+.gcal-btn:disabled {
+  background: #d8c6a4;
+}

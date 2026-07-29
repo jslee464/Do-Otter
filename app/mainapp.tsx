@@ -10,6 +10,9 @@ import {
   addSchedule,
   addSessionLog,
   deleteSchedule,
+  gcalConnectUrl,
+  gcalStatus,
+  gcalSync,
   getChat,
   getSchedules,
   getSessionLogs,
@@ -81,6 +84,11 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
   const [tapLine, setTapLine] = useState<string | null>(null);
   const [tapBusy, setTapBusy] = useState(false);
 
+  // 구글 캘린더
+  const [gcalConnected, setGcalConnected] = useState(false);
+  const [gcalConfigured, setGcalConfigured] = useState(false);
+  const [gcalBusy, setGcalBusy] = useState(false);
+
   async function refresh() {
     setState(await loadState());
     setSchedules(await getSchedules());
@@ -88,7 +96,51 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
   }
   useEffect(() => {
     refresh();
+    // 구글 캘린더 상태 확인 + OAuth 복귀 처리
+    (async () => {
+      const st = await gcalStatus();
+      setGcalConnected(st.connected);
+      setGcalConfigured(st.configured);
+      const params = new URLSearchParams(window.location.search);
+      const g = params.get("gcal");
+      if (g) {
+        window.history.replaceState({}, "", window.location.pathname);
+        if (g === "connected") {
+          setGcalConnected(true);
+          setAlarm("구글 캘린더 연동 완료! 일정을 가져올게요 📅");
+          await doGcalSync();
+        } else if (g === "error") {
+          setAlarm("구글 캘린더 연동에 실패했어요. 다시 시도해줄래요?");
+        } else if (g === "noretoken") {
+          setAlarm("이미 연동된 계정이에요. 구글 계정 설정에서 권한을 해제 후 다시 시도해주세요.");
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function connectGcal() {
+    setGcalBusy(true);
+    const r = await gcalConnectUrl();
+    setGcalBusy(false);
+    if (r.ok && r.url) window.location.href = r.url;
+    else if (r.error === "not_configured")
+      setAlarm("구글 캘린더가 아직 설정되지 않았어요 (관리자 키 등록 필요)");
+    else setAlarm("연동을 시작할 수 없어요. 로그인 상태를 확인해주세요.");
+  }
+  async function doGcalSync() {
+    setGcalBusy(true);
+    const r = await gcalSync();
+    if (r.ok) {
+      setSchedules(await getSchedules());
+      setAlarm(`구글 일정 ${r.count}개를 가져왔어요 📅`);
+    } else if (r.error === "not_connected") {
+      setAlarm("먼저 구글 캘린더를 연동해주세요.");
+    } else {
+      setAlarm("동기화에 실패했어요. 잠시 후 다시 시도해주세요.");
+    }
+    setGcalBusy(false);
+  }
 
   // 1초 틱
   useEffect(() => {
@@ -453,6 +505,9 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
             schedules={schedules}
             onAdd={addUserSchedule}
             onDelete={removeSchedule}
+            gcal={{ connected: gcalConnected, configured: gcalConfigured, busy: gcalBusy }}
+            onConnect={connectGcal}
+            onSync={doGcalSync}
           />
         )}
         {tab === "stats" && <StatsView state={state} lv={lv} logs={logs} />}

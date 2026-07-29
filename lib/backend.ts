@@ -444,6 +444,57 @@ export async function addChat(role: "user" | "assistant", content: string) {
 }
 
 /* =====================================================================
+ *  GOOGLE CALENDAR 연동 (서버 라우트 /api/gcal/* 호출)
+ * ===================================================================== */
+async function accessToken(): Promise<string | null> {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
+export async function gcalStatus(): Promise<{ connected: boolean; configured: boolean }> {
+  if (backendMode === "demo") return { connected: false, configured: false };
+  const t = await accessToken();
+  if (!t) return { connected: false, configured: false };
+  try {
+    const res = await fetch("/api/gcal/status", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${t}` },
+    });
+    const d = await res.json();
+    return { connected: !!d.connected, configured: !!d.configured };
+  } catch {
+    return { connected: false, configured: false };
+  }
+}
+
+export async function gcalConnectUrl(): Promise<{ ok: boolean; url?: string; error?: string }> {
+  if (backendMode === "demo") return { ok: false, error: "demo" };
+  const t = await accessToken();
+  if (!t) return { ok: false, error: "no_session" };
+  const res = await fetch("/api/gcal/auth", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${t}` },
+  });
+  const d = await res.json();
+  return d.url ? { ok: true, url: d.url } : { ok: false, error: d.error || "failed" };
+}
+
+export async function gcalSync(): Promise<{ ok: boolean; count?: number; error?: string }> {
+  if (backendMode === "demo") return { ok: false, error: "demo" };
+  const t = await accessToken();
+  if (!t) return { ok: false, error: "no_session" };
+  const res = await fetch("/api/gcal/sync", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${t}` },
+  });
+  const d = await res.json();
+  return typeof d.count === "number"
+    ? { ok: true, count: d.count }
+    : { ok: false, error: d.error || "failed" };
+}
+
+/* =====================================================================
  *  ONBOARDING 부가 저장 (약관 / 방해앱)
  * ===================================================================== */
 export async function saveConsent(c: Consent): Promise<Result> {
