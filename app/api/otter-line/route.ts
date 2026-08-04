@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
         { role: "system", content: system },
         { role: "user", content: user },
       ],
-      { maxTokens: 60, temperature: 1.05 }
+      { maxTokens: 3000, temperature: 0.9 }
     );
     return NextResponse.json({ line: line.replace(/^["'“”]|["'“”]$/g, "") || "화이팅! 🦦" });
   } catch (e: any) {

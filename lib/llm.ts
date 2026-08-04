@@ -92,7 +92,7 @@ export async function callDeepseek(
       Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model: "deepseek-chat",
+      model: "deepseek-v4-flash",
       messages,
       max_tokens: opts.maxTokens ?? 300,
       temperature: opts.temperature ?? 0.9,
