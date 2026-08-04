@@ -459,7 +459,8 @@ export async function addChat(role: "user" | "assistant", content: string) {
 }
 
 /* =====================================================================
- *  STRIPE 결제 (구독) — 서버 라우트 /api/stripe/* 호출
+ *  PORTONE(아임포트) 결제 — 브라우저 SDK 결제창 + 서버 검증(/api/portone/verify)
+ *  프로토타입: 30일 이용권 단건결제 (정기결제 빌링키는 추후 고도화)
  * ===================================================================== */
 async function accessToken(): Promise<string | null> {
   if (!supabase) return null;
@@ -467,19 +468,51 @@ async function accessToken(): Promise<string | null> {
   return data.session?.access_token ?? null;
 }
 
+const PLAN_INFO = {
+  chatpro: { amount: 2900, orderName: "수달 Chat Pro 30일 이용권" },
+  pro: { amount: 4900, orderName: "Pro 수달 30일 이용권" },
+} as const;
+
 export async function startCheckout(
   plan: "pro" | "chatpro"
-): Promise<{ ok: boolean; url?: string; error?: string }> {
+): Promise<{ ok: boolean; error?: string }> {
   if (backendMode === "demo") return { ok: false, error: "demo" };
   const t = await accessToken();
   if (!t) return { ok: false, error: "no_session" };
-  const res = await fetch("/api/stripe/checkout", {
+
+  const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
+  const channelKey = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY;
+  if (!storeId || !channelKey) return { ok: false, error: "not_configured" };
+
+  const info = PLAN_INFO[plan];
+  const paymentId = `pay-${plan}-${Date.now()}-${Math.floor(Math.random() * 1e5)}`;
+
+  let resp: any;
+  try {
+    const PortOne = (await import("@portone/browser-sdk/v2")).default;
+    resp = await PortOne.requestPayment({
+      storeId,
+      channelKey,
+      paymentId,
+      orderName: info.orderName,
+      totalAmount: info.amount,
+      currency: "CURRENCY_KRW",
+      payMethod: "CARD",
+    } as any);
+  } catch {
+    return { ok: false, error: "sdk_error" };
+  }
+  // 결제창에서 취소/실패 시 code 가 채워짐
+  if (resp?.code != null) return { ok: false, error: resp.message || "cancelled" };
+
+  // 서버 검증 + 이용권 부여
+  const v = await fetch("/api/portone/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-    body: JSON.stringify({ plan }),
+    body: JSON.stringify({ paymentId, plan }),
   });
-  const d = await res.json();
-  return d.url ? { ok: true, url: d.url } : { ok: false, error: d.error || "failed" };
+  const d = await v.json();
+  return d.ok ? { ok: true } : { ok: false, error: d.error || "verify_failed" };
 }
 
 /* =====================================================================

@@ -90,30 +90,21 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
   }
   useEffect(() => {
     refresh();
-    // Stripe 결제 복귀 처리 (?purchase=success|cancel)
-    const params = new URLSearchParams(window.location.search);
-    const pur = params.get("purchase");
-    if (pur) {
-      window.history.replaceState({}, "", window.location.pathname);
-      if (pur === "success") {
-        setAlarm("결제 완료! 구독이 곧 반영돼요 👑");
-        // 웹훅 반영에 약간 시간이 걸릴 수 있어 잠시 후 재조회
-        setTimeout(() => refresh(), 2500);
-      } else if (pur === "cancel") {
-        setAlarm("결제를 취소했어요.");
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function doCheckout(plan: "pro" | "chatpro") {
+    setAlarm("결제창을 여는 중…");
     const r = await startCheckout(plan);
-    if (r.ok && r.url) window.location.href = r.url;
-    else if (r.error === "not_configured")
-      setAlarm("결제가 아직 설정되지 않았어요 (관리자 Stripe 키 등록 필요)");
+    if (r.ok) {
+      await refresh(); // 이용권 반영
+      setAlarm(plan === "chatpro" ? "Chat Pro 결제 완료! 수달이랑 대화해봐요 💬" : "Pro 수달 결제 완료! 👑");
+    } else if (r.error === "not_configured")
+      setAlarm("결제가 아직 설정되지 않았어요 (관리자 PortOne 키 등록 필요)");
     else if (r.error === "demo")
-      setAlarm("데모 모드에선 결제를 쓸 수 없어요. Supabase 로그인 후 이용해주세요.");
-    else setAlarm("결제를 시작할 수 없어요. 잠시 후 다시 시도해주세요.");
+      setAlarm("데모 모드에선 결제를 쓸 수 없어요. 로그인 후 이용해주세요.");
+    else if (r.error === "cancelled" || r.error === "no_session")
+      setAlarm(r.error === "no_session" ? "로그인 후 이용해주세요." : "결제를 취소했어요.");
+    else setAlarm("결제에 실패했어요. 잠시 후 다시 시도해주세요.");
   }
 
   // 1초 틱
