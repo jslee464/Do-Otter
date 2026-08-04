@@ -112,6 +112,102 @@ export default function CalendarView(p: {
           </div>
         ))}
       </div>
+
+      {/* 월간 달력 — 날짜를 누르면 그날 일정 */}
+      <MonthCalendar schedules={p.schedules} />
     </div>
+  );
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const WD = ["일", "월", "화", "수", "목", "금", "토"];
+
+function MonthCalendar({ schedules }: { schedules: ScheduleEvent[] }) {
+  const [offset, setOffset] = useState(0);
+  const [selected, setSelected] = useState<string>(todayStr());
+
+  const base = new Date();
+  const view = new Date(base.getFullYear(), base.getMonth() + offset, 1);
+  const year = view.getFullYear();
+  const month = view.getMonth(); // 0-11
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const dstr = (d: number) => `${year}-${pad2(month + 1)}-${pad2(d)}`;
+
+  const byDate = new Map<string, ScheduleEvent[]>();
+  for (const s of schedules) {
+    if (!byDate.has(s.eventDate)) byDate.set(s.eventDate, []);
+    byDate.get(s.eventDate)!.push(s);
+  }
+
+  const today = todayStr();
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const dayList = byDate.get(selected) ?? [];
+  const dday = (iso: string) => {
+    const diff = Math.round(
+      (new Date(iso + "T00:00:00").getTime() - new Date(today + "T00:00:00").getTime()) /
+        86400000
+    );
+    return diff === 0 ? "D-DAY" : diff > 0 ? `D-${diff}` : "지남";
+  };
+
+  return (
+    <>
+      <div className="section-title">달력</div>
+      <div className="card">
+        <div className="mcal-head">
+          <button className="mcal-nav" onClick={() => setOffset(offset - 1)} aria-label="이전 달">
+            ‹
+          </button>
+          <div className="mcal-title">
+            {year}년 {month + 1}월
+          </div>
+          <button className="mcal-nav" onClick={() => setOffset(offset + 1)} aria-label="다음 달">
+            ›
+          </button>
+        </div>
+        <div className="mcal-grid">
+          {WD.map((w, i) => (
+            <div key={w} className={`mcal-dow ${i === 0 ? "sun" : i === 6 ? "sat" : ""}`}>
+              {w}
+            </div>
+          ))}
+          {cells.map((d, i) => {
+            if (d === null) return <div key={i} className="mcal-cell empty" />;
+            const ds = dstr(d);
+            const wd = (firstWeekday + d - 1) % 7;
+            return (
+              <button
+                key={i}
+                className={`mcal-cell ${ds === today ? "today" : ""} ${
+                  ds === selected ? "sel" : ""
+                } ${wd === 0 ? "sun" : wd === 6 ? "sat" : ""}`}
+                onClick={() => setSelected(ds)}
+              >
+                {d}
+                {byDate.has(ds) && <span className="mcal-dot" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="mcal-daytitle">
+          {selected.replace(/-/g, ". ")} 일정
+        </div>
+        {dayList.length === 0 && <div className="empty-line">이 날은 일정이 없어요</div>}
+        {dayList.map((s) => (
+          <div key={s.id} className="day-item">
+            <span className="day-src">{s.source === "googleCalendar" ? "📅" : "✏️"}</span>
+            <span className="day-title">{s.title}</span>
+            <span className="day-dday">{dday(s.eventDate)}</span>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

@@ -2032,3 +2032,120 @@ img {
 .gcal-btn:disabled {
   background: #d8c6a4;
 }
+
+/* ---------- 월간 달력 (일정 탭) ---------- */
+.mcal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.mcal-nav {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 20px;
+  color: var(--brown-mid);
+  background: var(--card-soft);
+}
+.mcal-title {
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--brown-dark);
+}
+.mcal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.mcal-dow {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  padding-bottom: 6px;
+}
+.mcal-dow.sun {
+  color: #e06a55;
+}
+.mcal-dow.sat {
+  color: #5a8fd0;
+}
+.mcal-cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  border-radius: 10px;
+  background: transparent;
+}
+.mcal-cell.empty {
+  background: transparent;
+  pointer-events: none;
+}
+.mcal-cell.sun {
+  color: #e06a55;
+}
+.mcal-cell.sat {
+  color: #5a8fd0;
+}
+.mcal-cell.today {
+  background: var(--card-soft);
+}
+.mcal-cell.sel {
+  background: var(--brown-mid);
+  color: #fff;
+}
+.mcal-cell.sel.sun,
+.mcal-cell.sel.sat {
+  color: #fff;
+}
+.mcal-dot {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green-deep);
+}
+.mcal-cell.sel .mcal-dot {
+  background: #fff;
+}
+.mcal-daytitle {
+  font-weight: 800;
+  color: var(--brown-dark);
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+.day-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.day-item:last-child {
+  border-bottom: none;
+}
+.day-src {
+  font-size: 16px;
+  flex: 0 0 auto;
+}
+.day-title {
+  flex: 1 1 auto;
+  font-weight: 700;
+  color: var(--brown-dark);
+  font-size: 14px;
+}
+.day-dday {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--brown-mid);
+}
