@@ -15,19 +15,39 @@ import {
 
 const IMG = "/images";
 
-type Step = "splash" | "auth" | "terms" | "apps" | "calendar" | "tutorial";
+type Step =
+  | "intro1"
+  | "intro2"
+  | "intro3"
+  | "auth"
+  | "terms"
+  | "apps"
+  | "calendar"
+  | "tutorial";
 const ORDER: Step[] = ["auth", "terms", "apps", "calendar", "tutorial"];
 
 export default function Onboarding({ onDone }: { onDone: () => void }) {
-  const [step, setStep] = useState<Step>("splash");
+  const [step, setStep] = useState<Step>("intro1");
+  const [authMode, setAuthMode] = useState<"signup" | "login">("signup");
   const [checking, setChecking] = useState(true);
 
   // 이미 로그인 + 온보딩 완료면 바로 메인으로
   useEffect(() => {
     (async () => {
-      // 데모/미리보기용 딥링크: #ob-terms, #ob-apps, #ob-calendar, #ob-tutorial, #ob-auth
+      // 데모/미리보기용 딥링크: #ob-intro1, #ob-intro2, #ob-intro3, #ob-terms, ...
       const h = window.location.hash.replace("#ob-", "");
-      if (["auth", "terms", "apps", "calendar", "tutorial"].includes(h)) {
+      if (
+        [
+          "intro1",
+          "intro2",
+          "intro3",
+          "auth",
+          "terms",
+          "apps",
+          "calendar",
+          "tutorial",
+        ].includes(h)
+      ) {
         setStep(h as Step);
         setChecking(false);
         return;
@@ -57,9 +77,28 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="ob">
-      {step === "splash" && <Splash onStart={() => setStep("auth")} />}
+      {step === "intro1" && (
+        <IntroScreen screen={1} onNext={() => setStep("intro2")} />
+      )}
+      {step === "intro2" && (
+        <IntroScreen screen={2} onNext={() => setStep("intro3")} />
+      )}
+      {step === "intro3" && (
+        <IntroScreen
+          screen={3}
+          onStart={() => {
+            setAuthMode("signup");
+            setStep("auth");
+          }}
+          onLogin={() => {
+            setAuthMode("login");
+            setStep("auth");
+          }}
+        />
+      )}
       {step === "auth" && (
         <Auth
+          initialMode={authMode}
           onAuthed={(fresh) => setStep(fresh ? "terms" : "terms")}
           onExisting={onDone}
         />
@@ -85,35 +124,113 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
   );
 }
 
-/* ----------------------------- 1. Splash ----------------------------- */
-function Splash({ onStart }: { onStart: () => void }) {
+/* -------------------------- 1~3. Intro -------------------------- */
+function IntroStatusBar() {
   return (
-    <>
-      <div className="splash">
-        <img src={`${IMG}/otter_default1.png`} alt="Do-Otter" />
-        <div className="logo">
-          Do-<span>Otter</span>
-        </div>
-        <div className="tag">수달이랑 같이 공부해요 🦦</div>
-      </div>
-      <div className="ob-foot">
-        <button className="primary-btn" onClick={onStart}>
-          시작하기
-        </button>
-      </div>
-    </>
+    <div className="intro-status" aria-hidden="true">
+      <span>9:41 AM</span>
+      <span className="intro-status-icons">
+        <span className="intro-signal">▮▮▮</span>
+        <span className="intro-wifi">⌁</span>
+        <span className="intro-battery" />
+      </span>
+    </div>
   );
 }
 
-/* ----------------------- 2. 로그인 / 회원가입 ----------------------- */
+function IntroDots() {
+  return (
+    <div className="intro-dots" aria-hidden="true">
+      <span />
+      <span className="on" />
+      <span />
+    </div>
+  );
+}
+
+function IntroScreen({
+  screen,
+  onNext,
+  onStart,
+  onLogin,
+}: {
+  screen: 1 | 2 | 3;
+  onNext?: () => void;
+  onStart?: () => void;
+  onLogin?: () => void;
+}) {
+  if (screen === 3) {
+    return (
+      <div className="ob-intro intro-3">
+        <IntroStatusBar />
+        <main className="intro-final">
+          <h1>
+            방해되는 앱은 잠시 쉬고,
+            <br />
+            집중은 오래 이어가요.
+          </h1>
+          <div className="intro-actions">
+            <button className="intro-start" onClick={onStart}>
+              시작하기 <span aria-hidden="true">→</span>
+            </button>
+            <p>
+              이미 계정이 있으신가요?{" "}
+              <button className="intro-login" onClick={onLogin}>
+                로그인
+              </button>
+            </p>
+          </div>
+        </main>
+        <div className="intro-home-indicator" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  const first = screen === 1;
+
+  return (
+    <div className={`ob-intro intro-${screen}`}>
+      <IntroStatusBar />
+      <button
+        className="intro-tap"
+        onClick={onNext}
+        aria-label={`온보딩 ${screen} 화면, 다음 화면으로 이동`}
+      >
+        <div className="intro-visual">
+          <img
+            src={`${IMG}/${first ? "onboarding-peek.jpg" : "onboarding-cheer.jpg"}`}
+            alt={first ? "벽 뒤에서 고개를 내민 수달" : "두 팔을 들고 응원하는 수달"}
+          />
+        </div>
+        <h1>
+          {first ? (
+            "집중이 잘 흐트러지나요?"
+          ) : (
+            <>
+              다시 집중할 수 있도록
+              <br />
+              OO이가 도와드릴게요.
+            </>
+          )}
+        </h1>
+        <IntroDots />
+      </button>
+      <div className="intro-home-indicator" aria-hidden="true" />
+    </div>
+  );
+}
+
+/* ----------------------- 4. 로그인 / 회원가입 ----------------------- */
 function Auth({
+  initialMode,
   onAuthed,
   onExisting,
 }: {
+  initialMode: "signup" | "login";
   onAuthed: (fresh: boolean) => void;
   onExisting: () => void;
 }) {
-  const [mode, setMode] = useState<"signup" | "login">("signup");
+  const [mode, setMode] = useState<"signup" | "login">(initialMode);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
@@ -140,7 +257,7 @@ function Auth({
 
   return (
     <>
-      <div className="ob-scroll">
+      <div className="ob-scroll auth-scroll">
         <div className="ob-title">
           {mode === "signup" ? "회원가입" : "로그인"}
         </div>
@@ -194,7 +311,7 @@ function Auth({
         </div>
         <div className="form-err">{err}</div>
       </div>
-      <div className="ob-foot">
+      <div className="ob-foot auth-foot">
         <button className="primary-btn" onClick={submit} disabled={busy}>
           {busy ? "잠시만요…" : mode === "signup" ? "가입하고 시작하기" : "로그인"}
         </button>
@@ -234,7 +351,7 @@ function Terms({
 
   return (
     <>
-      <div className="ob-scroll">
+      <div className="ob-scroll terms-scroll">
         <ProgressDots n={ORDER.length} i={progress} />
         <div className="ob-title">약관에 동의해주세요</div>
         <div className="ob-sub">서비스 이용을 위해 아래 약관을 확인해주세요.</div>
@@ -248,7 +365,7 @@ function Terms({
         <Row label="개인정보 처리방침" tag="req" on={privacy} set={setPrivacy} />
         <Row label="알림 수신 (d-day·목표)" tag="opt" on={noti} set={setNoti} />
       </div>
-      <div className="ob-foot">
+      <div className="ob-foot terms-foot">
         <button className="primary-btn" onClick={next} disabled={!canNext || busy}>
           동의하고 계속
         </button>
@@ -321,7 +438,7 @@ function Apps({ progress, onNext }: { progress: number; onNext: () => void }) {
 
   return (
     <>
-      <div className="ob-scroll">
+      <div className="ob-scroll apps-scroll">
         <ProgressDots n={ORDER.length} i={progress} />
         <div className="ob-title">방해되는 앱을 골라주세요</div>
         <div className="ob-sub">
@@ -341,9 +458,9 @@ function Apps({ progress, onNext }: { progress: number; onNext: () => void }) {
           ))}
         </div>
       </div>
-      <div className="ob-foot">
+      <div className="ob-foot apps-foot">
         <button className="primary-btn" onClick={next} disabled={busy}>
-          {sel.size}개 선택 · 계속
+          선택 완료
         </button>
       </div>
     </>
@@ -377,7 +494,7 @@ function CalendarConnect({
 
   return (
     <>
-      <div className="ob-scroll">
+      <div className="ob-scroll calendar-scroll">
         <ProgressDots n={ORDER.length} i={progress} />
         <div className="ob-title">구글 캘린더 연동</div>
         <div className="ob-sub">
@@ -394,7 +511,7 @@ function CalendarConnect({
           {linked && <div className="linked">✓ 연동 완료</div>}
         </div>
       </div>
-      <div className="ob-foot">
+      <div className="ob-foot calendar-foot">
         {!linked ? (
           <>
             <button className="primary-btn" onClick={link} disabled={busy}>
@@ -433,11 +550,16 @@ function Tutorial({ onFinish }: { onFinish: () => void }) {
       <div className="tut-dim" />
       <div className="tut-nav">
         {[0, 1, 2, 3, 4].map((s) => (
-          <div key={s} className={`tut-spot ${cur.spot === s ? "hi" : ""}`} />
+          <div key={s} className={`tut-spot ${cur.spot === s ? "hi" : ""}`}>
+            {cur.spot === s && (
+              <span className="tut-nav-icon" aria-hidden="true">
+                {cur.emoji}
+              </span>
+            )}
+          </div>
         ))}
       </div>
       <div className="tut-card" style={{ bottom: 100 }}>
-        <div className="temoji">{cur.emoji}</div>
         <div className="tt">{cur.tt}</div>
         <div className="td">{cur.td}</div>
         <button
