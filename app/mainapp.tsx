@@ -47,7 +47,7 @@ import {
   type Tab,
 } from "./shared";
 import { BottomNav, StatusBar } from "./components/ui";
-import { CongratsOverlay, OopsOverlay } from "./components/Overlays";
+import { ChatProPaywall, CongratsOverlay, OopsOverlay } from "./components/Overlays";
 import HomeView from "./views/HomeView";
 import StatsView from "./views/StatsView";
 import CalendarView from "./views/CalendarView";
@@ -77,6 +77,7 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
 
   // 수달이 LLM (챗봇 + 홈 터치 멘트)
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatLocked, setChatLocked] = useState(false); // Chat Pro 미구독 → 페이월
   const [chatMsgs, setChatMsgs] = useState<ChatRow[]>([]);
   const [chatBusy, setChatBusy] = useState(false);
   const [tapLine, setTapLine] = useState<string | null>(null);
@@ -151,6 +152,11 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
 
   /* ---------------- 수달이 LLM ---------------- */
   async function openChat() {
+    // 챗봇은 Chat Pro 전용 — 미구독이면 페이월
+    if (!state?.isChatPro) {
+      setChatLocked(true);
+      return;
+    }
     setChatOpen(true);
     setChatMsgs(await getChat());
   }
@@ -519,6 +525,16 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
             busy={chatBusy}
             onSend={sendChat}
             onClose={() => setChatOpen(false)}
+          />
+        )}
+
+        {chatLocked && (
+          <ChatProPaywall
+            onSubscribe={() => {
+              setChatLocked(false);
+              doCheckout("chatpro");
+            }}
+            onClose={() => setChatLocked(false)}
           />
         )}
 
