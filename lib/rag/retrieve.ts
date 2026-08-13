@@ -1,28 +1,185 @@
 /* =====================================================================
- *  Do-Otter · RAG 검색 (결정론적 룩업)
+ *  Do-Otter · 통합 RAG 검색 (검수 매핑 + 질의 재정렬)
  *  ─────────────────────────────────────────────────────────────────────
- *  벡터 유사도를 쓰지 않는다. 상황 ID → 근거 ID 매핑이 이미 사람 손으로
- *  확정되어 있으므로(situations.ts의 evidenceIds), 그 매핑을 그대로
- *  따른다. 12건짜리 코퍼스에서 임베딩 검색은 비용만 늘리고, 의학 답변에
- *  엉뚱한 근거가 딸려올 위험을 새로 만든다.
+ *  1) 상황 ID → 사람이 검수한 근거 후보군으로 안전 필터링
+ *  2) 자유 입력이 있으면 topic/tags/usage/claim의 키워드 관련도로 재정렬
+ *
+ *  벡터 검색 없이도 38건 코퍼스에서는 충분히 빠르고 설명 가능하다.
+ *  무엇보다 건강 근거와 코칭 근거가 엉뚱하게 섞이는 일을 막는다.
  *
  *  코퍼스가 수백 건으로 늘어나면 이 파일의 retrieve()만 교체하면 된다.
  *  상위 레이어(prompt.ts / route)는 Evidence[] 형태만 알면 되도록 격리.
  * ===================================================================== */
 
-import { evidenceByIds, type Evidence } from "./evidence";
-import { situationById, type Situation, type SituationId } from "./situations";
+import {
+  EVIDENCE,
+  evidenceByIds,
+  type Evidence,
+  type EvidenceId,
+} from "./evidence";
+import {
+  SITUATIONS,
+  situationById,
+  type Situation,
+  type SituationId,
+} from "./situations";
+
+export type RetrievalMode = "curated" | "curated+keyword";
+
+export type RetrieveOptions = {
+  /** 자유 입력. 있으면 검수 후보군 안에서 관련도 순으로 재정렬한다. */
+  query?: string;
+  /** 프롬프트에 넣을 최대 근거 수. 앱 이벤트는 기본적으로 전체 후보를 쓴다. */
+  maxEvidence?: number;
+};
 
 export type Retrieved = {
   situation: Situation;
   evidence: Evidence[];
+  retrieval: {
+    mode: RetrievalMode;
+    candidateCount: number;
+  };
 };
 
-/** 상황 ID → { 상황, 근거자료[] } */
-export function retrieve(id: SituationId): Retrieved | null {
+const QUERY_STOP_WORDS = new Set([
+  "그냥",
+  "정말",
+  "너무",
+  "지금",
+  "오늘",
+  "어떻게",
+  "해야",
+  "해요",
+  "하고",
+  "하는",
+  "있어",
+  "없어",
+]);
+
+function queryTokens(query: string): string[] {
+  return Array.from(
+    new Set(
+      query
+        .toLocaleLowerCase("ko-KR")
+        .match(/[A-Za-z0-9가-힣]+/g)
+        ?.filter((token) => token.length >= 2 && !QUERY_STOP_WORDS.has(token)) ?? []
+    )
+  );
+}
+
+function fuzzyIncludes(text: string, token: string): boolean {
+  if (text.includes(token)) return true;
+  // 한국어 조사/어미가 붙은 질의("시험이", "집중을")도 짧은 태그와 맞춘다.
+  if (token.length >= 3) {
+    return text
+      .split(/[^A-Za-z0-9가-힣]+/)
+      .some((term) => term.length >= 2 && token.includes(term));
+  }
+  return false;
+}
+
+function relevanceScore(evidence: Evidence, tokens: string[]): number {
+  if (tokens.length === 0) return 0;
+  const tags = (evidence.tags ?? []).map((tag) => tag.toLocaleLowerCase("ko-KR"));
+  const topic = evidence.topic.toLocaleLowerCase("ko-KR");
+  const usage = evidence.usage.toLocaleLowerCase("ko-KR");
+  const claim = evidence.claim.toLocaleLowerCase("ko-KR");
+  const title = evidence.sourceTitle.toLocaleLowerCase("en-US");
+
+  return tokens.reduce((score, token) => {
+    if (tags.some((tag) => fuzzyIncludes(tag, token) || fuzzyIncludes(token, tag))) {
+      score += 5;
+    }
+    if (fuzzyIncludes(topic, token)) score += 3;
+    if (fuzzyIncludes(usage, token)) score += 2;
+    if (fuzzyIncludes(claim, token)) score += 1;
+    if (fuzzyIncludes(title, token)) score += 1;
+    return score;
+  }, 0);
+}
+
+/** 상황 ID → 검수된 { 상황, 근거자료[] }. 질의가 있으면 후보 안에서만 재정렬한다. */
+export function retrieve(
+  id: SituationId,
+  options: RetrieveOptions = {}
+): Retrieved | null {
   const situation = situationById(id);
   if (!situation) return null;
-  return { situation, evidence: evidenceByIds(situation.evidenceIds) };
+  const candidates = evidenceByIds(situation.evidenceIds);
+  const query = options.query?.trim() ?? "";
+  const tokens = queryTokens(query);
+  let evidence = candidates;
+
+  if (tokens.length > 0 && candidates.length > 1) {
+    evidence = candidates
+      .map((item, index) => ({ item, index, score: relevanceScore(item, tokens) }))
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .map(({ item }) => item);
+  }
+
+  if (options.maxEvidence && options.maxEvidence > 0) {
+    evidence = evidence.slice(0, options.maxEvidence);
+  }
+
+  return {
+    situation,
+    evidence,
+    retrieval: {
+      mode: tokens.length > 0 ? "curated+keyword" : "curated",
+      candidateCount: candidates.length,
+    },
+  };
+}
+
+export type EvidenceSource = {
+  id: EvidenceId;
+  title: string;
+  publisher: string;
+  year: string;
+  url?: string;
+};
+
+/** API가 근거 전문 대신 안전한 출처 메타데이터만 노출할 때 사용한다. */
+export function evidenceSources(retrieved: Retrieved): EvidenceSource[] {
+  return retrieved.evidence.map((evidence) => ({
+    id: evidence.id,
+    title: evidence.sourceTitle,
+    publisher: evidence.publisher,
+    year: evidence.year,
+    ...(evidence.url ? { url: evidence.url } : {}),
+  }));
+}
+
+/** 빌드/테스트에서 코퍼스와 상황 매핑의 참조 무결성을 검사한다. */
+export function validateRagCorpus(): string[] {
+  const issues: string[] = [];
+  const evidenceIds = new Set(EVIDENCE.map((evidence) => evidence.id));
+  const situationIds = new Set(SITUATIONS.map((situation) => situation.id));
+
+  if (evidenceIds.size !== EVIDENCE.length) issues.push("중복된 근거 ID가 있습니다.");
+  if (situationIds.size !== SITUATIONS.length) issues.push("중복된 상황 ID가 있습니다.");
+
+  for (const situation of SITUATIONS) {
+    for (const evidenceId of situation.evidenceIds) {
+      if (!evidenceIds.has(evidenceId)) {
+        issues.push(`${situation.id}가 존재하지 않는 ${evidenceId}를 참조합니다.`);
+      }
+    }
+    if (situation.generation === "RAG+LLM" && situation.evidenceIds.length === 0) {
+      issues.push(`${situation.id}는 RAG+LLM이지만 근거가 없습니다.`);
+    }
+  }
+
+  for (const evidence of EVIDENCE) {
+    for (const situationId of evidence.situations) {
+      if (!situationIds.has(situationId)) {
+        issues.push(`${evidence.id}가 존재하지 않는 ${situationId}를 참조합니다.`);
+      }
+    }
+  }
+
+  return issues;
 }
 
 /* =====================================================================

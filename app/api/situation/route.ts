@@ -8,8 +8,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { callDeepseek, type OtterContext } from "../../../lib/llm";
-import { retrieve } from "../../../lib/rag/retrieve";
-import { situationAlarmPrompt } from "../../../lib/rag/prompt";
+import { evidenceSources, retrieve } from "../../../lib/rag/retrieve";
+import {
+  normalizeTemplateText,
+  situationAlarmPrompt,
+} from "../../../lib/rag/prompt";
 import type { SituationId } from "../../../lib/rag/situations";
 
 export const runtime = "nodejs";
@@ -19,7 +22,7 @@ export const dynamic = "force-dynamic";
 function fillSlots(tpl: string, slots: Record<string, string | number> = {}) {
   return tpl.replace(/\{([^}]+)\}/g, (m, key) => {
     const v = slots[key.trim()];
-    return v === undefined || v === null ? m : String(v);
+    return v === undefined || v === null ? key.trim() : String(v);
   });
 }
 
@@ -50,26 +53,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       line: draft,
       situationId: hit.situation.id,
-      evidenceIds: hit.situation.evidenceIds,
+      evidenceIds: hit.evidence.map((evidence) => evidence.id),
+      sources: evidenceSources(hit),
+      retrieval: hit.retrieval,
       generation: hit.situation.generation,
     });
   }
 
   try {
     const { system, user } = situationAlarmPrompt(hit, body.context);
-    // 의학 경로는 낮은 온도, 개인화 경로는 기존 톤 유지
+    // 건강은 가장 낮게, 근거 코칭도 일반 개인화보다 낮은 온도로 생성한다.
     const medical = hit.situation.medical;
+    const grounded = hit.evidence.length > 0;
     const line = await callDeepseek(
       [
         { role: "system", content: system },
         { role: "user", content: `${user}\n\n참고 초안: "${draft}"` },
       ],
-      { maxTokens: medical ? 400 : 300, temperature: medical ? 0.3 : 0.8 }
+      {
+        maxTokens: medical ? 400 : grounded ? 500 : 300,
+        temperature: medical ? 0.3 : grounded ? 0.45 : 0.8,
+      }
     );
     return NextResponse.json({
-      line: line.replace(/^["'“”]|["'“”]$/g, "") || draft,
+      line:
+        normalizeTemplateText(line.replace(/^["'“”]|["'“”]$/g, "")) || draft,
       situationId: hit.situation.id,
-      evidenceIds: hit.situation.evidenceIds,
+      evidenceIds: hit.evidence.map((evidence) => evidence.id),
+      sources: evidenceSources(hit),
+      retrieval: hit.retrieval,
       generation: hit.situation.generation,
     });
   } catch {
@@ -77,7 +89,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       line: draft,
       situationId: hit.situation.id,
-      evidenceIds: hit.situation.evidenceIds,
+      evidenceIds: hit.evidence.map((evidence) => evidence.id),
+      sources: evidenceSources(hit),
+      retrieval: hit.retrieval,
       generation: hit.situation.generation,
       fallback: true,
     });

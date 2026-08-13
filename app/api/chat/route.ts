@@ -6,8 +6,16 @@ import {
   type OtterContext,
 } from "../../../lib/llm";
 import { classifySituation } from "../../../lib/rag/classify";
-import { emergencyReply, isEmergency, retrieve } from "../../../lib/rag/retrieve";
-import { medicalSystemPrompt } from "../../../lib/rag/prompt";
+import {
+  emergencyReply,
+  evidenceSources,
+  isEmergency,
+  retrieve,
+} from "../../../lib/rag/retrieve";
+import {
+  groundedSystemPrompt,
+  normalizeTemplateText,
+} from "../../../lib/rag/prompt";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,10 +34,12 @@ export async function POST(req: NextRequest) {
 
   // ── 1) 응급 차단: LLM을 아예 거치지 않는다 (A58 / R11, R12) ──────────
   if (isEmergency(lastUser)) {
+    const emergencyHit = retrieve("A58");
     return NextResponse.json({
       reply: emergencyReply(),
       situationId: "A58",
       evidenceIds: ["R11", "R12"],
+      sources: emergencyHit ? evidenceSources(emergencyHit) : [],
       emergency: true,
     });
   }
@@ -37,22 +47,40 @@ export async function POST(req: NextRequest) {
   try {
     // ── 2) 상황 분류 → RAG 룩업 ──────────────────────────────────────
     const sid = await classifySituation(lastUser);
-    const hit = sid ? retrieve(sid) : null;
+    const hit = sid
+      ? retrieve(sid, { query: lastUser, maxEvidence: 4 })
+      : null;
 
-    // ── 3) 의학 경로 vs 일반 채팅 경로 ───────────────────────────────
-    if (hit && hit.situation.medical) {
-      const reply = await callDeepseek(
-        [
-          { role: "system", content: medicalSystemPrompt(hit, context) },
-          ...history.map((m) => ({ role: m.role, content: m.content })),
-        ],
-        { maxTokens: 600, temperature: 0.3 } // 의학 경로는 낮은 온도
-      );
-      return NextResponse.json({
-        reply: reply || hit.situation.template, // 실패 시 검수된 초안으로 폴백
-        situationId: hit.situation.id,
-        evidenceIds: hit.situation.evidenceIds,
-      });
+    // ── 3) 통합 근거 경로: 건강은 강한 가드레일, 코칭은 근거 기반 행동 제안 ──
+    if (hit && hit.evidence.length > 0) {
+      try {
+        const reply = await callDeepseek(
+          [
+            { role: "system", content: groundedSystemPrompt(hit, context) },
+            ...history.map((m) => ({ role: m.role, content: m.content })),
+          ],
+          {
+            maxTokens: hit.situation.medical ? 600 : 700,
+            temperature: hit.situation.medical ? 0.3 : 0.45,
+          }
+        );
+        return NextResponse.json({
+          reply: normalizeTemplateText(reply || hit.situation.template),
+          situationId: hit.situation.id,
+          evidenceIds: hit.evidence.map((evidence) => evidence.id),
+          sources: evidenceSources(hit),
+          retrieval: hit.retrieval,
+        });
+      } catch {
+        return NextResponse.json({
+          reply: normalizeTemplateText(hit.situation.template),
+          situationId: hit.situation.id,
+          evidenceIds: hit.evidence.map((evidence) => evidence.id),
+          sources: evidenceSources(hit),
+          retrieval: hit.retrieval,
+          fallback: true,
+        });
+      }
     }
 
     const reply = await callDeepseek(

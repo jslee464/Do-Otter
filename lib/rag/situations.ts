@@ -2,8 +2,8 @@
  *  Do-Otter · 감지 상황 카탈로그 (A1~A60)
  *  ─────────────────────────────────────────────────────────────────────
  *  「상황 목록」 문서의 각 행 = 여기의 한 객체.
- *  evidenceIds 가 곧 RAG 검색 결과다 — 벡터 유사도 대신 사람이 확정한
- *  매핑을 그대로 쓴다 (retrieve() in ./retrieve.ts).
+ *  evidenceIds가 RAG의 안전한 후보군이다. retrieve()는 이 후보군 밖의
+ *  근거를 가져오지 않고, 자유 입력에서는 후보 안에서 관련도를 재정렬한다.
  * ===================================================================== */
 
 import type { EvidenceId } from "./evidence";
@@ -29,7 +29,7 @@ export type Situation = {
   /** 감지 제약 사유 (부분가능/불가일 때) */
   detectNote?: string;
   answerType: AnswerType;
-  /** 의학적 내용 포함 여부 — true면 RAG 경로 + 의학 가드레일 */
+  /** 의학적 내용 포함 여부 — true면 통합 RAG 경로에 의료 가드레일 추가 */
   medical: boolean;
   /** 개입 목적 */
   purpose: string;
@@ -82,8 +82,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "예정 시각이 5분 지났어. 지금은 {과목}을 5분만 시작해—계획 전체보다 첫 문제 하나가 우선이야.",
     expectedAction: "공부 모드 실행 후 첫 문제/첫 페이지 시작",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R19", "R24"],
   },
   {
     id: "A4",
@@ -195,8 +195,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "한 시간 안에 {중단 횟수}번 흐름이 끊겼어. 다음 구간은 {짧은 목표 시간}분으로 줄이고 한 가지 일만 끝내자.",
     expectedAction: "짧은 타이머로 한 가지 과제 재시작",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R21", "R26"],
   },
   {
     id: "A12",
@@ -238,8 +238,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "오늘 예정된 공부가 아직 시작되지 않았어. 가장 짧은 {과목}을 5분만 켜서 첫 기록부터 만들자.",
     expectedAction: "가장 짧은 과목으로 5분 공부 시작",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R19", "R24"],
   },
   {
     id: "A15",
@@ -253,8 +253,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "오늘 남은 일정이 {남은 개수}개야. 전부 밀어 넣지 말고, 꼭 필요한 {우선 과제} 하나만 끝내고 나머지는 다시 배치하자.",
     expectedAction: "우선 과제 1개 수행 후 나머지 일정 재배치",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R18", "R20", "R23"],
   },
   {
     id: "A16",
@@ -267,8 +267,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "시험까지 7일 남았어. 오늘은 {남은 범위}를 7일에 나눈 분량 중 첫 구간부터 시작하자.",
     expectedAction: "남은 범위를 분할하고 오늘 분량 시작",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R13", "R14", "R15", "R16", "R17", "R23"],
   },
   {
     id: "A17",
@@ -281,8 +281,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "시험이 내일이야. 새 범위를 넓히기보다 {오답 또는 핵심 범위}를 정해진 시간만 확인하고 마무리하자.",
     expectedAction: "오답/핵심 범위 중심으로 제한된 시간 복습",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R13", "R14", "R17"],
   },
   {
     id: "A18",
@@ -295,8 +295,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "공부 기록이 {공백 일수}일 비어 있었어. 복구 목표는 크게 잡지 말고 오늘 10분 기록 하나부터 다시 만들자.",
     expectedAction: "10분 타이머로 공부 재시작",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R19", "R24", "R30", "R31"],
   },
 
   /* ---------- 방해 앱 (모바일 권한 필요 — 웹앱에서 트리거 불가) ---------- */
@@ -312,8 +312,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "지금 {앱명}에 들어왔어. 필요한 용도가 아니라면 닫고, 방금 하던 {과목}으로 돌아가자.",
     expectedAction: "방해 앱 종료 후 기존 공부 화면 복귀",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R25", "R26", "R27", "R29"],
   },
   {
     id: "A20",
@@ -327,8 +327,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "3분째 {앱명}을 보고 있어. 여기서 닫으면 공부 흐름을 바로 복구할 수 있어—지금 종료하자.",
     expectedAction: "방해 앱 종료 및 공부 모드 복귀",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R25", "R26", "R27", "R29"],
   },
   {
     id: "A21",
@@ -342,8 +342,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "10분이 지났어. 해야 할 양은 그대로이니 {앱명}을 닫고, {과목} 5분부터 다시 시작하자.",
     expectedAction: "방해 앱 종료 후 5분 공부 타이머 시작",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R25", "R26", "R27", "R29"],
   },
   {
     id: "A22",
@@ -357,8 +357,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "오늘 방해 앱 이탈이 {이탈 횟수}번, 총 {사용 시간}분이야. 자책하지 말고 앱을 닫은 뒤 다음 공부 목표를 5분으로 줄여 다시 시작하자.",
     expectedAction: "방해 앱 종료 후 5분 목표로 공부 재개",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R25", "R26", "R27", "R29"],
   },
 
   /* ---------- 수면 / 카페인 (의학) ---------- */
@@ -449,8 +449,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "{시험명}까지 D-{남은 일수}야. 남은 범위를 확인하고 오늘 할 첫 구간 하나를 일정에 넣자.",
     expectedAction: "남은 범위를 나누고 오늘 분량 등록",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R13", "R14", "R15", "R18", "R23"],
   },
   {
     id: "A29",
@@ -463,8 +463,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "{과제명} 마감이 내일이야. 전체를 끝내려 하지 말고 지금 10분 동안 첫 단계부터 시작하자.",
     expectedAction: "10분 타이머로 과제 첫 단계 시작",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R19", "R24"],
   },
   {
     id: "A30",
@@ -477,8 +477,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "{과제명} 마감이 지났지만 아직 미완료야. 지금 처리할지, 현실적인 새 마감 시각을 정할지 하나를 선택해.",
     expectedAction: "즉시 수행 또는 새 마감 시각 설정",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R23", "R24"],
   },
   {
     id: "A31",
@@ -491,8 +491,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "무엇을 끝낼지 정해지지 않았어. {과목}에서 문제 수나 페이지 범위 하나만 입력하고 시작하자.",
     expectedAction: "구체적인 범위 또는 문제 수 입력",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R18", "R20", "R21"],
   },
 
   /* ---------- 세션 진행 / 목표 ---------- */
@@ -535,8 +535,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "목표 {목표 시간}분 중 {실제 시간}분에서 끝났어. 다음 세션은 가능한 시간으로 줄여 다시 잡자.",
     expectedAction: "짧아진 목표 시간으로 다음 세션 예약",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R20", "R24"],
   },
   {
     id: "A35",
@@ -606,8 +606,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "오늘 기록이 아직 없어. 연속 기록을 유지하려면 지금 {최소 목표 시간}분만 시작하면 돼.",
     expectedAction: "최소 목표 시간의 공부 세션 시작",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R30", "R31", "R32"],
   },
   {
     id: "A40",
@@ -620,8 +620,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "이번 주 총 {주간 공부 시간}, 계획 달성률은 {달성률}%야. 다음 주에는 가장 자주 미룬 {취약 시간대 또는 과목} 하나만 조정하자.",
     expectedAction: "리포트 확인 후 다음 주 개선 항목 1개 설정",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R18", "R22", "R23", "R35", "R36"],
   },
   {
     id: "A41",
@@ -634,8 +634,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "지난주 같은 시점보다 공부 시간이 {감소율}% 줄었어. 남은 기간 목표를 다시 계산하고 오늘 가능한 한 구간부터 채우자.",
     expectedAction: "주간 목표 조정 후 오늘 세션 시작",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R18", "R22", "R23", "R35"],
   },
   {
     id: "A42",
@@ -679,8 +679,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "30분 안에 {앱명}을 {진입 횟수}번 열었어. 앱을 닫고 다음 공부 구간 동안만 차단 강도를 올리자.",
     expectedAction: "방해 앱 종료 후 일시적 강한 차단 적용",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R25", "R26", "R27", "R29"],
   },
 
   /* ---------- 게이미피케이션 ---------- */
@@ -769,8 +769,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "알림을 세 번 닫았어. 지금은 긴 계획 대신 시작 시각을 다시 정하거나 5분 목표로 낮추자.",
     expectedAction: "알림 시간 재설정 또는 5분 세션 시작",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R19", "R37", "R38"],
   },
 
   /* ---------- 챗봇 자유 입력 (A51~A58) ---------- */
@@ -785,8 +785,8 @@ export const SITUATIONS: Situation[] = [
     template:
       "지금 집중이 안 되는 상태는 확인했어. 책상 위에서 필요 없는 것 하나를 치우고 {과목} 첫 문제만 5분 동안 보자.",
     expectedAction: "환경 정리 1개 후 5분 공부 시작",
-    generation: "LLM개인화",
-    evidenceIds: [],
+    generation: "RAG+LLM",
+    evidenceIds: ["R19", "R21", "R24", "R26"],
   },
   {
     id: "A52",
@@ -929,9 +929,37 @@ export function situationById(id: SituationId): Situation | undefined {
   return BY_ID.get(id);
 }
 
-/** 챗봇 자유 입력으로 분류 가능한 상황 (A51~A58) */
+/**
+ * 챗봇 자유 입력으로도 분류할 수 있는 상황.
+ * 앱 이벤트 전용 상황은 여기에 넣지 않으며, 사용자가 말로 표현할 수 있는
+ * 학습·생산성 고민과 기존 건강 입력만 포함한다.
+ */
 export const CHAT_SITUATION_IDS: SituationId[] = [
-  "A51", "A52", "A53", "A54", "A55", "A56", "A57", "A58",
+  "A3",
+  "A11",
+  "A14",
+  "A15",
+  "A16",
+  "A17",
+  "A18",
+  "A22",
+  "A29",
+  "A30",
+  "A31",
+  "A34",
+  "A39",
+  "A40",
+  "A41",
+  "A44",
+  "A50",
+  "A51",
+  "A52",
+  "A53",
+  "A54",
+  "A55",
+  "A56",
+  "A57",
+  "A58",
 ];
 
 export function chatSituations(): Situation[] {
@@ -943,7 +971,14 @@ export function detectableSituations(): Situation[] {
   return SITUATIONS.filter((s) => s.detectable !== "불가");
 }
 
-/** 의학적 답변 = RAG 경로를 타는 상황 */
+/** 의학적 답변 상황 */
 export function medicalSituations(): Situation[] {
   return SITUATIONS.filter((s) => s.medical);
+}
+
+/** 건강과 코칭을 합친 전체 RAG 상황 */
+export function ragSituations(): Situation[] {
+  return SITUATIONS.filter(
+    (s) => s.generation === "RAG+LLM" && s.evidenceIds.length > 0
+  );
 }
