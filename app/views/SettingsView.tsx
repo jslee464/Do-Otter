@@ -15,18 +15,19 @@ export default function SettingsView(p: {
   onOops: () => void;
   onCustomize: () => void;
   onSignOut: () => void;
+  dark: boolean;
+  onDarkChange: (value: boolean) => void;
 }) {
   const [block, setBlock] = useState(true);
   const [noti, setNoti] = useState(true);
   const [gcal, setGcal] = useState(true);
-  const [dark, setDark] = useState(false);
   const [notiTiming, setNotiTiming] = useState("자동");
   const [timerMode, setTimerMode] = useState("일반");
   const rows: [string, string, string, boolean, (v: boolean) => void][] = [
     ["📵", "방해 앱 차단", "공부 중 지정한 앱을 잠가요", block, setBlock],
     ["🔔", "알림", "d-day와 목표 알림을 받아요", noti, setNoti],
     ["📅", "구글 캘린더 연동", "일정을 자동으로 동기화해요", gcal, setGcal],
-    ["🌙", "다크 모드", "밤에 눈이 편한 화면", dark, setDark],
+    ["🌙", "다크 모드", "밤에 눈이 편한 화면", p.dark, p.onDarkChange],
   ];
   return (
     <div className="view">
@@ -37,12 +38,12 @@ export default function SettingsView(p: {
           {backendMode === "supabase" ? "● Supabase" : "● 데모"}
         </span>
       </div>
-      <div className="card">
-        <div className="set-item" style={{ borderBottom: "none" }}>
+      <div className="card account-card">
+        <div className="set-item account-item">
           <div className="set-ico">🦦</div>
           <div className="set-txt">
             <div className="t">{p.state.username}</div>
-            <div className="d">Lv.{p.lv.level} · 조개 {p.state.shells}개</div>
+            <div className="d">Lv.{p.lv.level}</div>
           </div>
         </div>
       </div>

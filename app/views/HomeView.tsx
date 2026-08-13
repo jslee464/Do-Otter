@@ -30,11 +30,9 @@ export default function HomeView(p: {
   const active = p.phase === "running" || p.phase === "paused";
   const otter = p.harmfulActive
     ? "otter_astonished.png"
-    : running
-    ? "otter_study.png"
-    : "otter_default1.png";
-  const remain =
-    p.targetMin > 0 ? Math.max(0, p.targetMin * 60 - p.studySec) : null;
+    : active
+    ? "character_clock.jpg"
+    : "character_fish.jpg";
   const bubbleText = p.tapLine
     ? p.tapLine
     : p.harmfulActive
@@ -42,19 +40,19 @@ export default function HomeView(p: {
     : p.bubble;
 
   return (
-    <div className="view">
+    <div className={`view home-view home-${p.phase}`}>
       <TopBar state={p.state} lv={p.lv} />
 
-      <div className="avatar-wrap">
+      <div className="avatar-wrap home-avatar-wrap">
+        <div className="speech"><span className="speech-text">{bubbleText}</span></div>
         <OtterAvatar img={otter} equipped={p.equipped} onClick={p.onTapOtter}>
-          <div className="speech">{bubbleText}</div>
         </OtterAvatar>
       </div>
       <div className="tap-hint">수달이를 톡 건드려봐! 🫧</div>
 
       <div className="timer">{fmt(p.studySec)}</div>
       <div className="mode-tag">
-        {running && !p.harmfulActive && "STUDY MODE · 집중하는 중"}
+        {running && !p.harmfulActive && "STUDY MODE"}
         {running && p.harmfulActive && "⚠️ 딴짓 중 · 순공시간이 줄고 있어요"}
         {p.phase === "paused" && "일시정지"}
         {p.phase === "idle" && " "}
@@ -71,8 +69,8 @@ export default function HomeView(p: {
         </div>
       )}
 
-      {active && remain !== null && (
-        <div className="target-line">목표 {p.targetMin}분 · 남은 시간 {fmt(remain)}</div>
+      {active && p.targetMin > 0 && (
+        <div className="target-line">목표 {p.targetMin}분</div>
       )}
 
       <div className="controls">

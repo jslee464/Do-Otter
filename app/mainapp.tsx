@@ -38,7 +38,6 @@ import {
 import {
   buildContext,
   dstr,
-  IMG,
   OpenChat,
   todayStr,
   type Phase,
@@ -53,12 +52,18 @@ import CalendarView from "./views/CalendarView";
 import CharacterView from "./views/CharacterView";
 import SettingsView from "./views/SettingsView";
 import ChatView from "./views/ChatView";
+import ProAd from "./components/ProAd";
 
 export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
   const [tab, setTab] = useState<Tab>("home");
+  const [darkMode, setDarkMode] = useState(() =>
+    typeof window !== "undefined" && window.localStorage.getItem("do-otter-theme") === "dark"
+  );
   const [state, setState] = useState<UserState | null>(null);
   const [schedules, setSchedules] = useState<ScheduleEvent[]>([]);
   const [logs, setLogs] = useState<SessionLog[]>([]);
+  const [showProAd, setShowProAd] = useState(false);
+  const proAdChecked = useRef(false);
 
   // timer
   const [phase, setPhase] = useState<Phase>("idle");
@@ -89,6 +94,18 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
   useEffect(() => {
     refresh();
   }, []);
+
+  // 첫 공부를 마친 사용자가 앱을 다시 열었을 때만 Pro 안내 표시
+  useEffect(() => {
+    if (!state || proAdChecked.current) return;
+    proAdChecked.current = true;
+    if (state.sessionCount < 1) return;
+
+    const hiddenUntil = Number(
+      window.localStorage.getItem(`do-otter-pro-hidden-until:${state.username}`) ?? 0,
+    );
+    if (Date.now() >= hiddenUntil) setShowProAd(true);
+  }, [state]);
 
   // 1초 틱
   useEffect(() => {
@@ -410,10 +427,12 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
 
   if (!state) {
     return (
-      <div className="screen">
+      <div className={`screen ${darkMode ? "theme-dark" : ""}`}>
         <div className="notch" />
-        <div className="view" style={{ display: "grid", placeItems: "center" }}>
-          <img src={`${IMG}/otter_default1.png`} width={120} alt="loading" />
+        <div className="main-loading" role="status" aria-label="메인 화면 불러오는 중">
+          <span className="main-loading-dot" />
+          <span className="main-loading-dot" />
+          <span className="main-loading-dot" />
         </div>
       </div>
     );
@@ -421,7 +440,7 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
 
   return (
     <OpenChat.Provider value={openChat}>
-      <div className="screen">
+      <div className={`screen ${darkMode ? "theme-dark" : ""}`}>
         <div className="notch" />
         <StatusBar />
 
@@ -466,6 +485,11 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
             onAd={watchAd}
             onOops={simulateOops}
             onCustomize={() => setTab("character")}
+            dark={darkMode}
+            onDarkChange={(value) => {
+              setDarkMode(value);
+              window.localStorage.setItem("do-otter-theme", value ? "dark" : "light");
+            }}
             onSignOut={async () => {
               await signOut();
               onSignOut();
@@ -493,6 +517,23 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
             busy={chatBusy}
             onSend={sendChat}
             onClose={() => setChatOpen(false)}
+          />
+        )}
+
+        {showProAd && (
+          <ProAd
+            onClose={() => setShowProAd(false)}
+            onHideWeek={() => {
+              window.localStorage.setItem(
+                `do-otter-pro-hidden-until:${state.username}`,
+                String(Date.now() + 7 * 24 * 60 * 60 * 1000),
+              );
+              setShowProAd(false);
+            }}
+            onOpenPro={() => {
+              setShowProAd(false);
+              setTab("settings");
+            }}
           />
         )}
 

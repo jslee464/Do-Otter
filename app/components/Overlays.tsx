@@ -15,7 +15,7 @@ export function CongratsOverlay({
   return (
     <div className="overlay congrats">
       <h2>{leveled ? "LEVEL UP! 🎉" : "Congratulations!"}</h2>
-      <img className="otterbig" src={`${IMG}/otter_cheer.png`} alt="cheer" />
+      <img className="otterbig" src={`${IMG}/character_cheer.jpg`} alt="응원하는 수달이" />
       <div className="pts-pill">
         <span className="plus">+{o.expEarned} EXP</span>
         {o.shellsGained > 0 && <span className="plus">+{o.shellsGained} 🐚</span>}

@@ -199,25 +199,30 @@ export function aiComment(args: {
 
 /* ---------- 수달 커스텀 아이템 (Phase 2-4 수달 커스텀 설정) ---------- */
 export type ItemSlot = "head" | "face" | "neck" | "sideL" | "sideR";
+export type ItemCategory = "안경" | "소품" | "모자" | "목걸이";
 export type OtterItem = {
   id: string;
   name: string;
   emoji: string;
   price: number; // 조개
   slot: ItemSlot;
-  grade: "커먼" | "레어" | "에픽";
+  category: ItemCategory;
+  grade: "common" | "rare" | "epic";
 };
 
 export const OTTER_ITEMS: OtterItem[] = [
-  { id: "glasses", name: "공부 안경", emoji: "👓", price: 80, slot: "face", grade: "커먼" },
-  { id: "scarf", name: "포근 목도리", emoji: "🧣", price: 60, slot: "neck", grade: "커먼" },
-  { id: "cocoa", name: "따뜻한 코코아", emoji: "☕", price: 45, slot: "sideR", grade: "커먼" },
-  { id: "books", name: "책 더미", emoji: "📚", price: 150, slot: "sideL", grade: "레어" },
-  { id: "headphone", name: "집중 헤드폰", emoji: "🎧", price: 120, slot: "head", grade: "레어" },
-  { id: "cap", name: "학사모", emoji: "🎓", price: 200, slot: "head", grade: "에픽" },
-  { id: "crown", name: "왕관", emoji: "👑", price: 500, slot: "head", grade: "에픽" },
-  { id: "sunglasses", name: "선글라스", emoji: "🕶️", price: 90, slot: "face", grade: "레어" },
-  { id: "medal", name: "메달", emoji: "🏅", price: 300, slot: "neck", grade: "에픽" },
+  { id: "cocoa", name: "따뜻한 코코아", emoji: "☕", price: 50, slot: "sideR", category: "소품", grade: "common" },
+  { id: "glasses", name: "공부 안경", emoji: "👓", price: 60, slot: "face", category: "안경", grade: "common" },
+  { id: "scarf", name: "포근 목도리", emoji: "🧣", price: 70, slot: "neck", category: "목걸이", grade: "common" },
+  { id: "headphone", name: "집중 헤드폰", emoji: "🎧", price: 80, slot: "head", category: "모자", grade: "common" },
+  { id: "fish", name: "생선", emoji: "🐟", price: 140, slot: "sideR", category: "소품", grade: "rare" },
+  { id: "monocle", name: "돋보기 안경", emoji: "🧐", price: 150, slot: "face", category: "안경", grade: "rare" },
+  { id: "cap", name: "학사모", emoji: "🎓", price: 180, slot: "head", category: "모자", grade: "rare" },
+  { id: "medal", name: "메달", emoji: "🏅", price: 200, slot: "neck", category: "목걸이", grade: "rare" },
+  { id: "books", name: "책", emoji: "📖", price: 260, slot: "sideL", category: "소품", grade: "epic" },
+  { id: "sunglasses", name: "선글라스", emoji: "🕶️", price: 280, slot: "face", category: "안경", grade: "epic" },
+  { id: "emerald-necklace", name: "에메랄드 목걸이", emoji: "💚", price: 420, slot: "neck", category: "목걸이", grade: "epic" },
+  { id: "crown", name: "왕관", emoji: "👑", price: 500, slot: "head", category: "모자", grade: "epic" },
 ];
 
 // 아바타(250px 원) 위 오버레이 위치

@@ -1,11 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Onboarding from "./onboarding";
 import MainApp from "./mainapp";
+import ProAd from "./components/ProAd";
 
 export default function Page() {
   const [view, setView] = useState<"onboarding" | "app">("onboarding");
+  const [previewProAd, setPreviewProAd] = useState(false);
+
+  useEffect(() => {
+    const syncProAdPreview = () => {
+      setPreviewProAd(window.location.hash === "#preview-pro-ad");
+    };
+
+    syncProAdPreview();
+    window.addEventListener("hashchange", syncProAdPreview);
+    return () => window.removeEventListener("hashchange", syncProAdPreview);
+  }, []);
 
   return (
     <div className="stage">
@@ -17,6 +29,13 @@ export default function Page() {
           <div className="screen">
             <div className="notch" />
             <Onboarding onDone={() => setView("app")} />
+            {previewProAd && (
+              <ProAd
+                onClose={() => setPreviewProAd(false)}
+                onHideWeek={() => setPreviewProAd(false)}
+                onOpenPro={() => setPreviewProAd(false)}
+              />
+            )}
           </div>
         ) : (
           <MainApp onSignOut={() => setView("onboarding")} />

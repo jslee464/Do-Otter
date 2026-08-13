@@ -136,12 +136,12 @@ function IntroStatusBar() {
   );
 }
 
-function IntroDots() {
+function IntroDots({ current }: { current: 1 | 2 | 3 }) {
   return (
     <div className="intro-dots" aria-hidden="true">
-      <span />
-      <span className="on" />
-      <span />
+      {[1, 2, 3].map((dot) => (
+        <span key={dot} className={dot === current ? "on" : ""} />
+      ))}
     </div>
   );
 }
@@ -178,6 +178,7 @@ function IntroScreen({
               </button>
             </p>
           </div>
+          <IntroDots current={3} />
         </main>
         <div className="intro-home-indicator" aria-hidden="true" />
       </div>
@@ -211,7 +212,7 @@ function IntroScreen({
             </>
           )}
         </h1>
-        <IntroDots />
+        <IntroDots current={screen} />
       </button>
       <div className="intro-home-indicator" aria-hidden="true" />
     </div>
@@ -305,7 +306,11 @@ function Auth({
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="숫자, 영문자를 포함하여 6자 이상"
+            placeholder={
+              mode === "signup"
+                ? "6자 이상으로 작성해주세요."
+                : "비밀번호를 입력해주세요."
+            }
             onKeyDown={(e) => e.key === "Enter" && submit()}
           />
         </div>
@@ -331,15 +336,54 @@ function Terms({
   const [terms, setTerms] = useState(false);
   const [privacy, setPrivacy] = useState(false);
   const [noti, setNoti] = useState(false);
+  const [permissionNote, setPermissionNote] = useState("");
   const all = terms && privacy && noti;
   const canNext = terms && privacy; // 필수 2개
   const [busy, setBusy] = useState(false);
 
-  function toggleAll() {
+  async function setNotificationConsent(value: boolean) {
+    if (!value) {
+      setNoti(false);
+      setPermissionNote("");
+      return;
+    }
+
+    if (!("Notification" in window)) {
+      setNoti(false);
+      setPermissionNote("이 기기에서는 알림 권한 요청을 지원하지 않습니다.");
+      return;
+    }
+
+    if (!window.isSecureContext) {
+      setNoti(false);
+      setPermissionNote("알림 권한은 보안 연결(HTTPS)에서 허용할 수 있습니다.");
+      return;
+    }
+
+    const permission =
+      Notification.permission === "granted"
+        ? "granted"
+        : await Notification.requestPermission();
+
+    if (permission === "granted") {
+      setNoti(true);
+      setPermissionNote("");
+      return;
+    }
+
+    setNoti(false);
+    setPermissionNote(
+      permission === "denied"
+        ? "휴대폰 설정에서 Do-Otter 알림을 허용해주세요."
+        : "알림 수신을 사용하려면 알림 권한을 허용해주세요.",
+    );
+  }
+
+  async function toggleAll() {
     const v = !all;
     setTerms(v);
     setPrivacy(v);
-    setNoti(v);
+    await setNotificationConsent(v);
   }
 
   async function next() {
@@ -356,14 +400,24 @@ function Terms({
         <div className="ob-title">약관에 동의해주세요</div>
         <div className="ob-sub">서비스 이용을 위해 아래 약관을 확인해주세요.</div>
 
-        <div className="term-all" onClick={toggleAll}>
+        <div className="term-all" onClick={() => void toggleAll()}>
           <span className={`chk ${all ? "on" : ""}`}>✓</span>
           전체 동의하기
         </div>
 
         <Row label="서비스 이용약관" tag="req" on={terms} set={setTerms} />
         <Row label="개인정보 처리방침" tag="req" on={privacy} set={setPrivacy} />
-        <Row label="알림 수신 (d-day·목표)" tag="opt" on={noti} set={setNoti} />
+        <Row
+          label="알림 수신 (d-day·목표)"
+          tag="opt"
+          on={noti}
+          set={setNotificationConsent}
+        />
+        {permissionNote && (
+          <div className="permission-note" role="status">
+            {permissionNote}
+          </div>
+        )}
       </div>
       <div className="ob-foot terms-foot">
         <button className="primary-btn" onClick={next} disabled={!canNext || busy}>
@@ -382,10 +436,10 @@ function Terms({
     label: string;
     tag: "req" | "opt";
     on: boolean;
-    set: (v: boolean) => void;
+    set: (v: boolean) => void | Promise<void>;
   }) {
     return (
-      <div className="term-row" onClick={() => set(!on)}>
+      <div className="term-row" onClick={() => void set(!on)}>
         <span className={`chk ${on ? "on" : ""}`}>✓</span>
         <span style={{ flex: 1 }}>{label}</span>
         <span className={tag}>{tag === "req" ? "[필수]" : "[선택]"}</span>
@@ -395,43 +449,96 @@ function Terms({
 }
 
 /* ------------------------- 4. 방해 앱 선택 ------------------------- */
-const APPS: BlockedApp[] = [
-  { key: "instagram", name: "Instagram" },
-  { key: "youtube", name: "YouTube" },
-  { key: "tiktok", name: "TikTok" },
-  { key: "kakaotalk", name: "카카오톡" },
-  { key: "x", name: "X" },
-  { key: "netflix", name: "Netflix" },
-  { key: "webtoon", name: "웹툰" },
-  { key: "game", name: "게임" },
-  { key: "coupang", name: "쿠팡" },
+type SelectableApp = BlockedApp & { icon?: string };
+type NativeAppChoice = { key: string; name: string; icon?: string };
+
+declare global {
+  interface Window {
+    DoOtterNative?: {
+      pickInstalledApps: () =>
+        | NativeAppChoice[]
+        | Promise<NativeAppChoice[]>
+        | string;
+    };
+  }
+}
+
+const APPS: SelectableApp[] = [
+  { key: "instagram", name: "Instagram", icon: "/images/app-icons/instagram.png" },
+  { key: "youtube", name: "YouTube", icon: "/images/app-icons/youtube.png" },
+  { key: "tiktok", name: "TikTok", icon: "/images/app-icons/tiktok.png" },
+  { key: "kakaotalk", name: "카카오톡", icon: "/images/app-icons/kakaotalk.png" },
+  { key: "x", name: "X", icon: "/images/app-icons/x.png" },
+  { key: "netflix", name: "Netflix", icon: "/images/app-icons/netflix.png" },
+  {
+    key: "webtoon",
+    name: "네이버웹툰",
+    icon: "/images/app-icons/naver-webtoon.png",
+  },
+  { key: "game", name: "게임", icon: "/images/app-icons/game.png" },
+  { key: "coupang", name: "쿠팡", icon: "/images/app-icons/coupang.png" },
 ];
-const APP_EMOJI: Record<string, string> = {
-  instagram: "📸",
-  youtube: "▶️",
-  tiktok: "🎵",
-  kakaotalk: "💬",
-  x: "🐦",
-  netflix: "🎬",
-  webtoon: "📖",
-  game: "🎮",
-  coupang: "🛒",
-};
 
 function Apps({ progress, onNext }: { progress: number; onNext: () => void }) {
   const [sel, setSel] = useState<Set<string>>(
     new Set(["instagram", "youtube", "tiktok"])
   );
   const [busy, setBusy] = useState(false);
+  const [customApps, setCustomApps] = useState<SelectableApp[]>([]);
+  const [pickerNote, setPickerNote] = useState("");
+  const allApps = Array.from(
+    new Map([...customApps, ...APPS].map((app) => [app.key, app])).values(),
+  );
 
   function toggle(k: string) {
     const n = new Set(sel);
     n.has(k) ? n.delete(k) : n.add(k);
     setSel(n);
   }
+
+  async function pickOtherApps() {
+    setPickerNote("");
+    const nativeBridge = window.DoOtterNative;
+
+    if (!nativeBridge) {
+      setPickerNote(
+        "전체 앱 목록 선택은 휴대폰용 Do-Otter 앱에서\n사용할 수 있어요.",
+      );
+      return;
+    }
+
+    try {
+      const result = await Promise.resolve(nativeBridge.pickInstalledApps());
+      const parsed = typeof result === "string" ? JSON.parse(result) : result;
+      if (!Array.isArray(parsed)) throw new Error("invalid app list");
+
+      const picked = parsed.filter(
+        (app): app is NativeAppChoice =>
+          Boolean(app && typeof app.key === "string" && typeof app.name === "string"),
+      );
+
+      setCustomApps((current) => {
+        const merged = new Map(current.map((app) => [app.key, app]));
+        picked.forEach((app) => merged.set(app.key, app));
+        return Array.from(merged.values());
+      });
+      setSel((current) => {
+        const nextSelection = new Set(current);
+        picked.forEach((app) => nextSelection.add(app.key));
+        return nextSelection;
+      });
+    } catch {
+      setPickerNote("앱 목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
+    }
+  }
+
   async function next() {
     setBusy(true);
-    await saveBlockedApps(APPS.filter((a) => sel.has(a.key)));
+    await saveBlockedApps(
+      allApps
+        .filter((app) => sel.has(app.key))
+        .map(({ key, name }) => ({ key, name })),
+    );
     setBusy(false);
     onNext();
   }
@@ -442,21 +549,37 @@ function Apps({ progress, onNext }: { progress: number; onNext: () => void }) {
         <ProgressDots n={ORDER.length} i={progress} />
         <div className="ob-title">방해되는 앱을 골라주세요</div>
         <div className="ob-sub">
-          공부하는 동안 이 앱들을 켜면 수달이가 화나요. 나중에 바꿀 수 있어요.
+          공부하는 동안 이 앱들을 켜면 Do-Otter가 화나요.
+          <br />
+          나중에 바꿀 수 있어요.
         </div>
         <div className="app-grid">
-          {APPS.map((a) => (
+          {allApps.map((a) => (
             <div
               key={a.key}
               className={`app-tile ${sel.has(a.key) ? "on" : ""}`}
               onClick={() => toggle(a.key)}
             >
               <span className="acheck">✓</span>
-              <div className="aemoji">{APP_EMOJI[a.key]}</div>
+              <div className="aemoji">
+                {a.icon ? (
+                  <img src={a.icon} alt={`${a.name} 아이콘`} />
+                ) : (
+                  <span aria-hidden="true">{a.name.slice(0, 1)}</span>
+                )}
+              </div>
               <div className="aname">{a.name}</div>
             </div>
           ))}
         </div>
+        <button className="other-app-btn" onClick={() => void pickOtherApps()}>
+          다른 앱 선택하기
+        </button>
+        {pickerNote && (
+          <div className="app-picker-note" role="status">
+            {pickerNote}
+          </div>
+        )}
       </div>
       <div className="ob-foot apps-foot">
         <button className="primary-btn" onClick={next} disabled={busy}>
@@ -498,7 +621,7 @@ function CalendarConnect({
         <ProgressDots n={ORDER.length} i={progress} />
         <div className="ob-title">구글 캘린더 연동</div>
         <div className="ob-sub">
-          시험·과제 일정을 자동으로 불러와 d-day로 알려드려요.
+          시험과 과제 일정을 자동으로 불러와 D-day로 알려드려요.
         </div>
         <div className="gcal-card">
           <div className="gicon">📅</div>
@@ -533,9 +656,9 @@ function CalendarConnect({
 
 /* --------------------------- 6. 튜토리얼 --------------------------- */
 const TUT = [
-  { emoji: "🏠", tt: "메인 · 공부 타이머", td: "재생 버튼을 누르면 Study Mode가 시작돼요. 집중한 만큼 조개와 점수를 얻어요.", spot: 2 },
-  { emoji: "📊", tt: "통계", td: "총 공부 시간, 타이머 스톱 시간, 외부 앱 사용 시간이 기록돼요.", spot: 1 },
-  { emoji: "📖", tt: "일정", td: "시험·과제 d-day를 캘린더에서 확인해요.", spot: 3 },
+  { emoji: "🏠", tt: "메인 화면", td: "공부 타이머 시작 버튼을 누르면 Study Mode가 시작돼요. 집중한 만큼 조개와 점수를 얻어요.", spot: 2 },
+  { emoji: "📊", tt: "통계", td: "집중을 완료하면 총 공부시간, 외부 앱 사용시간 기록을 볼 수 있어요.", spot: 1 },
+  { emoji: "📖", tt: "일정", td: "시험과 과제 D-day를 캘린더에서 확인해요", spot: 3 },
   { emoji: "⚙️", tt: "설정", td: "방해 앱 차단, 알림, 캘린더 연동을 관리해요.", spot: 4 },
 ];
 
@@ -582,7 +705,6 @@ function MockHome() {
   return (
     <div className="tut-mock">
       <div style={{ padding: "60px 24px" }}>
-        <div className="mentbox">멘트</div>
         <div className="avatar-wrap">
           <div className="avatar">
             <img src={`${IMG}/otter_default1.png`} alt="" />

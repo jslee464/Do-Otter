@@ -43,7 +43,9 @@ export function TopBar({ state, lv }: { state: UserState; lv: LV }) {
           </div>
         </div>
         <button className="otter-chat-btn" onClick={openChat} aria-label="수달이와 채팅">
-          <img src={`${IMG}/face_happy.png`} alt="수달이" />
+          <span className="otter-chat-face">
+            <img src={`${IMG}/character_flat.png`} alt="수달이" />
+          </span>
           <span className="chat-dot" />
         </button>
       </div>
@@ -65,14 +67,25 @@ export function OtterAvatar({
   children?: React.ReactNode;
   onClick?: () => void;
 }) {
+  const photoClass = img.startsWith("character_")
+    ? `avatar-photo avatar-photo-${img.replace("character_", "").split(".")[0]}`
+    : undefined;
+  const avatarVariant = img.startsWith("character_")
+    ? `avatar-${img.replace("character_", "").split(".")[0]}`
+    : "";
+
   return (
     <div
-      className={`avatar ${onClick ? "tappable" : ""}`}
+      className={`avatar ${avatarVariant} ${onClick ? "tappable" : ""}`}
       onClick={onClick}
       role={onClick ? "button" : undefined}
     >
       {children}
-      <img src={`${IMG}/${img}`} alt="otter" />
+      <img
+        className={photoClass}
+        src={`${IMG}/${img}`}
+        alt="otter"
+      />
       {equipped.map((id) => {
         const it = itemById(id);
         if (!it) return null;

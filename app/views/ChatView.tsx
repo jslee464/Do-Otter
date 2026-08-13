@@ -38,7 +38,7 @@ export default function ChatView({
         <button className="chat-back" onClick={onClose} aria-label="뒤로">
           ‹
         </button>
-        <img className="chat-ava" src={`${IMG}/face_happy.png`} alt="수달이" />
+        <img className="chat-ava" src={`${IMG}/character_flat.png`} alt="수달이" />
         <div>
           <div className="chat-name">수달이</div>
           <div className="chat-status">● 항상 네 곁에 있어</div>
@@ -48,7 +48,7 @@ export default function ChatView({
       <div className="chat-body" ref={bodyRef}>
         {msgs.length === 0 && (
           <div className="chat-empty">
-            <img src={`${IMG}/otter_default1.png`} width={120} alt="" />
+            <img className="chat-empty-character" src={`${IMG}/character_fish.jpg`} alt="수달이" />
             <div className="ce-t">안녕 {username}! 🦦</div>
             <div className="ce-d">공부 고민, 계획, 뭐든 편하게 얘기해봐.</div>
           </div>
