@@ -66,9 +66,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
   if (checking) {
     return (
       <div className="ob">
-        <div className="splash">
-          <img src={`${IMG}/otter_default1.png`} alt="loading" />
-        </div>
+        <IntroScreen screen={1} />
       </div>
     );
   }
@@ -209,7 +207,7 @@ function IntroScreen({
             <>
               다시 집중할 수 있도록
               <br />
-              OO이가 도와드릴게요.
+              <span className="intro-brand">Do-Otter</span>가 도와드릴게요.
             </>
           )}
         </h1>
@@ -262,7 +260,9 @@ function Auth({
           {mode === "signup" ? "회원가입" : "로그인"}
         </div>
         <div className="ob-sub">
-          아이디와 비밀번호로 시작해요.{" "}
+          {mode === "login"
+            ? "아이디와 비밀번호를 입력해주세요."
+            : "아이디와 비밀번호로 시작해요."}{" "}
           <span className={`mode-chip ${backendMode === "supabase" ? "live" : "demo"}`}>
             {backendMode === "supabase" ? "● Supabase 연결" : "● 데모 모드"}
           </span>
@@ -305,7 +305,7 @@ function Auth({
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="6자 이상"
+            placeholder="숫자, 영문자를 포함하여 6자 이상"
             onKeyDown={(e) => e.key === "Enter" && submit()}
           />
         </div>

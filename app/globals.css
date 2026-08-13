@@ -1059,6 +1059,10 @@ img {
   line-height: 1.9;
 }
 
+.intro-2 .intro-brand {
+  color: #66718f;
+}
+
 .intro-dots {
   display: flex;
   align-items: center;
@@ -1122,7 +1126,7 @@ img {
 }
 
 .intro-actions p {
-  margin: 9px 0 0;
+  margin: 15px 0 0;
   color: #aeb4c3;
   font-size: 11px;
 }
@@ -1290,12 +1294,12 @@ img {
 .auth-scroll .field label,
 .auth-scroll .field input,
 .auth-scroll .seg button {
-  color: #8f97b0;
+  color: #66718f;
 }
 
 .auth-scroll .field input::placeholder {
   color: #8f97b0;
-  opacity: 0.72;
+  opacity: 0.78;
 }
 
 .auth-scroll .field input:focus {
@@ -1303,7 +1307,15 @@ img {
 }
 
 .auth-scroll .seg button.on {
-  color: #8f97b0;
+  color: #66718f;
+}
+
+.auth-scroll .seg {
+  background: #eef5fb;
+}
+
+.auth-scroll .seg button.on {
+  box-shadow: 0 3px 8px -4px rgba(84, 93, 128, 0.42);
 }
 
 .auth-foot .primary-btn,
