@@ -3,6 +3,7 @@
  *  공용 UI 컴포넌트 (StatusBar / TopBar / OtterAvatar / BottomNav)
  *  ⚠️ 여러 뷰가 함께 사용 — 변경 시 팀에 공유하세요.
  * ===================================================================== */
+import Image from "next/image";
 import { useContext } from "react";
 import { IMG, OpenChat, type LV, type Tab } from "../shared";
 import { itemById, SLOT_POS } from "../../lib/logic";
@@ -13,9 +14,9 @@ export function StatusBar() {
     <div className="statusbar">
       <span>9:41</span>
       <span className="sb-icons">
-        <span>􀙇</span>
-        <span>􀛨</span>
-        <span>􀛧</span>
+        <span>▮▮▮</span>
+        <span>⌁</span>
+        <span>▭</span>
       </span>
     </div>
   );
@@ -42,10 +43,8 @@ export function TopBar({ state, lv }: { state: UserState; lv: LV }) {
             <div className="level-fill" style={{ ["--xp" as string]: xp }} />
           </div>
         </div>
-        <button className="otter-chat-btn" onClick={openChat} aria-label="수달이와 채팅">
-          <span className="otter-chat-face">
-            <img src={`${IMG}/character_flat.png`} alt="수달이" />
-          </span>
+        <button className="otter-chat-btn" onClick={openChat} aria-label="Otti와 채팅">
+          <span className="otter-chat-face">Otti</span>
           <span className="chat-dot" />
         </button>
       </div>
@@ -81,10 +80,12 @@ export function OtterAvatar({
       role={onClick ? "button" : undefined}
     >
       {children}
-      <img
+      <Image
         className={photoClass}
         src={`${IMG}/${img}`}
         alt="otter"
+        width={512}
+        height={512}
       />
       {equipped.map((id) => {
         const it = itemById(id);
@@ -112,7 +113,7 @@ export function BottomNav({
   setTab: (t: Tab) => void;
 }) {
   const items: { key: Tab; icon: string; label: string }[] = [
-    { key: "character", icon: "🦦", label: "수달이" },
+    { key: "impact", icon: "🌊", label: "영향" },
     { key: "stats", icon: "📊", label: "기록" },
     { key: "home", icon: "🏠", label: "홈" },
     { key: "calendar", icon: "📖", label: "일정" },

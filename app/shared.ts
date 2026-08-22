@@ -10,7 +10,7 @@ import type { OtterContext } from "../lib/llm";
 
 export const IMG = "/images";
 
-export type Tab = "character" | "stats" | "home" | "calendar" | "settings";
+export type Tab = "impact" | "character" | "stats" | "home" | "calendar" | "settings";
 export type Phase = "idle" | "selecting" | "running" | "paused";
 export type LV = { level: number; currentExp: number; nextReq: number };
 export type SessionOutcome = {
@@ -48,11 +48,10 @@ export function todayStr() {
 }
 
 export const TIME_OPTIONS = [
-  { label: "20분", min: 20 },
-  { label: "50분", min: 50 },
-  { label: "1시간", min: 60 },
-  { label: "2시간", min: 120 },
-  { label: "스톱워치", min: 0 },
+  { label: "10분", min: 10 },
+  { label: "25분", min: 25 },
+  { label: "45분", min: 45 },
+  { label: "60분", min: 60 },
 ];
 
 // Supabase 통계/일정 → LLM 컨텍스트

@@ -28,7 +28,7 @@ export default function CalendarView(p: {
   };
 
   return (
-    <div className="view">
+    <div className="view calendar-view">
       <TopBar state={p.state} lv={p.lv} />
 
       {nearest && (

@@ -30,7 +30,7 @@ export default function SettingsView(p: {
     ["🌙", "다크 모드", "밤에 눈이 편한 화면", p.dark, p.onDarkChange],
   ];
   return (
-    <div className="view">
+    <div className="view settings-view">
       <TopBar state={p.state} lv={p.lv} />
       <div className="section-title" style={{ marginTop: 14 }}>
         계정
@@ -80,12 +80,12 @@ export default function SettingsView(p: {
         </div>
       </div>
 
-      <div className="section-title">수달 · 조개</div>
+      <div className="section-title">Otti · 조개</div>
       <div className="card">
-        <MenuRow ic="🎨" t="수달 커스텀 설정" d="아이템으로 수달이를 꾸며요" onClick={p.onCustomize} />
-        <MenuRow ic="😊" t="수달 모드 설정" d="응원형 / 츤데레형 등" />
+        <MenuRow ic="🎨" t="Otti 커스텀 설정" d="아이템으로 Otti를 꾸며요" onClick={p.onCustomize} />
+        <MenuRow ic="😊" t="Otti 모드 설정" d="응원형 / 츤데레형 등" />
         <button className="wide-btn" onClick={p.onAd}>📺 광고 보고 조개 얻기 (+{SHELL.adWatch})</button>
-        <button className="wide-btn pro">👑 Pro 수달 결제 (광고 제거 + 커스텀)</button>
+        <button className="wide-btn pro">👑 Pro Otti 결제 (광고 제거 + 커스텀)</button>
       </div>
 
       <div className="section-title">체험하기</div>
@@ -94,7 +94,7 @@ export default function SettingsView(p: {
           <div className="set-ico">🚫</div>
           <div className="set-txt">
             <div className="t">방해앱 사용 시뮬레이션</div>
-            <div className="d">외부 앱 30분 사용 → 기록 + 수달 화남</div>
+            <div className="d">외부 앱 30분 사용 → 기록 + Otti 놀람</div>
           </div>
         </div>
         <button className="danger-btn" onClick={p.onOops}>유해 앱 사용해보기 😾</button>

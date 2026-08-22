@@ -8,10 +8,19 @@ import ProAd from "./components/ProAd";
 export default function Page() {
   const [view, setView] = useState<"onboarding" | "app">("onboarding");
   const [previewProAd, setPreviewProAd] = useState(false);
+  const [previewMain, setPreviewMain] = useState<"home" | "impact" | "complete" | null>(null);
 
   useEffect(() => {
     const syncProAdPreview = () => {
       setPreviewProAd(window.location.hash === "#preview-pro-ad");
+      const previewHash = window.location.hash.replace("#preview-", "");
+      setPreviewMain(
+        previewHash === "main"
+          ? "home"
+          : previewHash === "impact" || previewHash === "complete"
+            ? previewHash
+            : null,
+      );
     };
 
     syncProAdPreview();
@@ -22,10 +31,12 @@ export default function Page() {
   return (
     <div className="stage">
       <div className="tagline">
-        <b>Do-Otter</b> · 수달이랑 공부하기 🦦 &nbsp;— 웹앱 프로토타입
+        <b>Do-Otter</b> · Otti와 강을 회복하는 집중 타이머
       </div>
       <div className="phone">
-        {view === "onboarding" ? (
+        {previewMain ? (
+          <MainApp preview={previewMain} onSignOut={() => setPreviewMain(null)} />
+        ) : view === "onboarding" ? (
           <div className="screen">
             <div className="notch" />
             <Onboarding onDone={() => setView("app")} />
@@ -42,8 +53,7 @@ export default function Page() {
         )}
       </div>
       <div className="tagline">
-        회원가입 → 약관 → 방해앱 선택 → 캘린더 연동 → 튜토리얼 → 첫 공부 ·
-        블루프린트 온보딩 순서 그대로
+        강이 막힘 → Otti 등장 → 함께 청소 시작 → 첫 집중
       </div>
     </div>
   );

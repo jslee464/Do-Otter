@@ -14,6 +14,27 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
     })
   : null;
 
+export async function checkSupabaseConnection(): Promise<boolean> {
+  if (!url || !anon) return false;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+
+  try {
+    const response = await fetch(`${url.replace(/\/$/, "")}/auth/v1/health`, {
+      method: "GET",
+      headers: { apikey: anon },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export function usernameToEmail(username: string) {
   return `${username.trim().toLowerCase()}@${USERNAME_EMAIL_DOMAIN}`;
 }

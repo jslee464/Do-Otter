@@ -1,10 +1,8 @@
 "use client";
-/* =====================================================================
- *  홈 / 공부 타이머 뷰  — 담당: 메인·타이머
- * ===================================================================== */
-import { fmt, TIME_OPTIONS, type LV, type Phase } from "../shared";
-import { TopBar, OtterAvatar } from "../components/ui";
-import { HARMFUL } from "../../lib/logic";
+
+import { fmt, type LV, type Phase } from "../shared";
+import { DurationPicker, RiverScene } from "../components/product";
+import { TopBar } from "../components/ui";
 import type { UserState } from "../../lib/backend";
 
 export default function HomeView(p: {
@@ -13,121 +11,85 @@ export default function HomeView(p: {
   phase: Phase;
   studySec: number;
   targetMin: number;
-  harmfulActive: boolean;
-  bubble: string;
-  onPlay: () => void;
-  onSelect: (min: number) => void;
+  goalName: string;
+  onGoalNameChange: (value: string) => void;
+  onDurationChange: (minutes: number) => void;
+  onStart: () => void;
   onPause: () => void;
   onResume: () => void;
-  onToggleHarmful: () => void;
-  stopDown: () => void;
-  stopUp: () => void;
-  equipped: string[];
-  onTapOtter: () => void;
-  tapLine: string | null;
+  onFinish: () => void;
 }) {
-  const running = p.phase === "running";
   const active = p.phase === "running" || p.phase === "paused";
-  const otter = p.harmfulActive
-    ? "otter_astonished.png"
-    : active
-    ? "character_clock.jpg"
-    : "character_fish.jpg";
-  const bubbleText = p.tapLine
-    ? p.tapLine
-    : p.harmfulActive
-    ? HARMFUL.strong
-    : p.bubble;
+  const remainingSec = active
+    ? Math.max(0, p.targetMin * 60 - p.studySec)
+    : p.targetMin * 60;
 
   return (
     <div className={`view home-view home-${p.phase}`}>
       <TopBar state={p.state} lv={p.lv} />
 
-      <div className="avatar-wrap home-avatar-wrap">
-        <div className="speech"><span className="speech-text">{bubbleText}</span></div>
-        <OtterAvatar img={otter} equipped={p.equipped} onClick={p.onTapOtter}>
-        </OtterAvatar>
-      </div>
-      <div className="tap-hint">수달이를 톡 건드려봐! 🫧</div>
+      <header className="home-intro">
+        <span>
+          {active ? "Otti와 함께 청소 중" : "알림과 방해 요소가 물길을 막고 있어요"}
+        </span>
+        <h1>{active ? "집중이 물길을 열고 있어요" : "오늘은 강을 얼마나 회복시켜볼까요?"}</h1>
+      </header>
 
-      <div className="timer">{fmt(p.studySec)}</div>
-      <div className="mode-tag">
-        {running && !p.harmfulActive && "STUDY MODE"}
-        {running && p.harmfulActive && "⚠️ 딴짓 중 · 순공시간이 줄고 있어요"}
-        {p.phase === "paused" && "일시정지"}
-        {p.phase === "idle" && " "}
-        {p.phase === "selecting" && "공부 시간을 선택하세요"}
-      </div>
+      <RiverScene
+        stage={active ? "arrived" : "blocked"}
+        mirrored={active}
+        className="home-river"
+        imageSrc={active ? "/images/river/focus-in-progress.png" : "/images/river/home-blocked.png"}
+        imageAlt={active ? "Otti가 강을 청소하며 집중 중인 장면" : "집중 전, 알림과 방해 요소로 막힌 강"}
+      />
 
-      {p.phase === "selecting" && (
-        <div className="time-select">
-          {TIME_OPTIONS.map((t) => (
-            <button key={t.label} className="time-chip" onClick={() => p.onSelect(t.min)}>
-              {t.label}
-            </button>
-          ))}
+      <section className="focus-card" aria-label="집중 타이머">
+        <div className="focus-card-head">
+          <span>{active ? "남은 시간" : "집중 시간"}</span>
+          {active && (
+            <span className="focus-status">
+              {p.phase === "paused" ? "일시정지" : "진행 중"}
+            </span>
+          )}
         </div>
-      )}
+        <div className="focus-time" aria-live="polite">{fmt(remainingSec)}</div>
 
-      {active && p.targetMin > 0 && (
-        <div className="target-line">목표 {p.targetMin}분</div>
-      )}
-
-      <div className="controls">
-        {p.phase === "idle" && (
-          <button className="claybtn play" onClick={p.onPlay} aria-label="시작">
-            ▶
-          </button>
-        )}
-        {running && (
+        {!active ? (
           <>
-            <button className="claybtn small" onClick={p.onPause} aria-label="일시정지">
-              ❚❚
-            </button>
-            <button
-              className="claybtn small"
-              onMouseDown={p.stopDown}
-              onMouseUp={p.stopUp}
-              onMouseLeave={p.stopUp}
-              onTouchStart={p.stopDown}
-              onTouchEnd={p.stopUp}
-              aria-label="정지(길게)"
-            >
-              ■
+            <DurationPicker value={p.targetMin} onChange={p.onDurationChange} />
+            <label className="goal-field">
+              <span>목표명 <small>선택</small></span>
+              <input
+                value={p.goalName}
+                onChange={(event) => p.onGoalNameChange(event.target.value)}
+                placeholder="예: 발표 자료 정리"
+                maxLength={40}
+              />
+            </label>
+            <button className="focus-primary" type="button" onClick={p.onStart}>
+              집중 시작
             </button>
           </>
-        )}
-        {p.phase === "paused" && (
+        ) : (
           <>
-            <button className="claybtn small" onClick={p.onResume} aria-label="다시 시작">
-              ▶
-            </button>
-            <button
-              className="claybtn small"
-              onMouseDown={p.stopDown}
-              onMouseUp={p.stopUp}
-              onMouseLeave={p.stopUp}
-              onTouchStart={p.stopDown}
-              onTouchEnd={p.stopUp}
-              aria-label="정지(길게)"
-            >
-              ■
-            </button>
+            {p.goalName && <div className="active-goal">목표 · {p.goalName}</div>}
+            <div className="focus-controls">
+              {p.phase === "paused" ? (
+                <button type="button" className="focus-secondary" onClick={p.onResume}>
+                  계속
+                </button>
+              ) : (
+                <button type="button" className="focus-secondary" onClick={p.onPause}>
+                  일시정지
+                </button>
+              )}
+              <button type="button" className="focus-end" onClick={p.onFinish}>
+                종료
+              </button>
+            </div>
           </>
         )}
-      </div>
-
-      {active && (
-        <>
-          <button
-            className={`distract-btn ${p.harmfulActive ? "on" : ""}`}
-            onClick={p.onToggleHarmful}
-          >
-            {p.harmfulActive ? "📚 공부로 돌아가기" : "📱 딴짓하기 (유해앱 열기)"}
-          </button>
-          <div className="hint-hold">■ 정지 버튼을 꾹 누르면 세션이 완료돼요</div>
-        </>
-      )}
+      </section>
     </div>
   );
 }

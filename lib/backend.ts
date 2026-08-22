@@ -131,17 +131,21 @@ export async function signUp(username: string, password: string): Promise<Result
     return { ok: true };
   }
   const email = usernameToEmail(username);
-  const { data, error } = await supabase!.auth.signUp({
-    email,
-    password,
-    options: { data: { username } },
-  });
-  if (error) return { ok: false, error: translate(error.message) };
-  if (!data.session) {
-    const s = await supabase!.auth.signInWithPassword({ email, password });
-    if (s.error) return { ok: false, error: translate(s.error.message) };
+  try {
+    const { data, error } = await supabase!.auth.signUp({
+      email,
+      password,
+      options: { data: { username } },
+    });
+    if (error) return { ok: false, error: translate(error.message) };
+    if (!data.session) {
+      const s = await supabase!.auth.signInWithPassword({ email, password });
+      if (s.error) return { ok: false, error: translate(s.error.message) };
+    }
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: translateError(error) };
   }
-  return { ok: true };
 }
 
 export async function signIn(username: string, password: string): Promise<Result> {
@@ -155,12 +159,16 @@ export async function signIn(username: string, password: string): Promise<Result
       setLs(LS.statePfx + username, defaultState(username));
     return { ok: true };
   }
-  const { error } = await supabase!.auth.signInWithPassword({
-    email: usernameToEmail(username),
-    password,
-  });
-  if (error) return { ok: false, error: translate(error.message) };
-  return { ok: true };
+  try {
+    const { error } = await supabase!.auth.signInWithPassword({
+      email: usernameToEmail(username),
+      password,
+    });
+    if (error) return { ok: false, error: translate(error.message) };
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: translateError(error) };
+  }
 }
 
 export async function signOut() {
@@ -173,16 +181,24 @@ export async function signOut() {
 
 export async function currentUsername(): Promise<string | null> {
   if (backendMode === "demo") return ls<string | null>(LS.session, null);
-  const { data } = await supabase!.auth.getUser();
-  const u = data.user;
-  if (!u) return null;
-  return (u.user_metadata?.username as string) || u.email?.split("@")[0] || null;
+  try {
+    const { data } = await supabase!.auth.getUser();
+    const u = data.user;
+    if (!u) return null;
+    return (u.user_metadata?.username as string) || u.email?.split("@")[0] || null;
+  } catch {
+    return null;
+  }
 }
 
 async function uid(): Promise<string | null> {
   if (backendMode === "demo") return ls<string | null>(LS.session, null);
-  const { data } = await supabase!.auth.getUser();
-  return data.user?.id ?? null;
+  try {
+    const { data } = await supabase!.auth.getUser();
+    return data.user?.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /* =====================================================================
@@ -504,6 +520,13 @@ export async function setOnboarded() {
 /* ---------- helpers ---------- */
 function translate(msg: string): string {
   const m = msg.toLowerCase();
+  if (
+    m.includes("failed to fetch") ||
+    m.includes("fetcherror") ||
+    m.includes("network request") ||
+    m.includes("networkerror")
+  )
+    return "Supabase 서버에 연결할 수 없어요. 프로젝트 URL과 상태를 확인해주세요.";
   if (m.includes("already registered") || m.includes("already been registered"))
     return "이미 가입된 아이디예요.";
   if (m.includes("invalid login")) return "아이디 또는 비밀번호가 올바르지 않아요.";
@@ -511,4 +534,8 @@ function translate(msg: string): string {
     return "이메일 확인이 켜져 있어요. Supabase에서 Confirm email을 꺼주세요.";
   if (m.includes("password")) return "비밀번호는 6자 이상이어야 해요.";
   return msg;
+}
+
+function translateError(error: unknown): string {
+  return translate(error instanceof Error ? error.message : String(error));
 }

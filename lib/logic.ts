@@ -148,7 +148,7 @@ export type Achievement = {
 
 export const ACHIEVEMENTS: Achievement[] = [
   { num: 1, id: "first_step", name: "첫 발걸음", cond: "첫 공부 세션 완료", category: "시작", reward: 30, tier: "소형", test: (c) => c.sessionCount >= 1 },
-  { num: 2, id: "passion", name: "열정 수달", cond: "누적 10세션 완료", category: "횟수", reward: 50, tier: "소형", test: (c) => c.sessionCount >= 10 },
+  { num: 2, id: "passion", name: "열정 Otti", cond: "누적 10세션 완료", category: "횟수", reward: 50, tier: "소형", test: (c) => c.sessionCount >= 10 },
   { num: 3, id: "veteran", name: "백전노장", cond: "누적 50세션 완료", category: "횟수", reward: 100, tier: "중형", test: (c) => c.sessionCount >= 50 },
   { num: 4, id: "session_master", name: "세션 마스터", cond: "누적 100세션 완료", category: "횟수", reward: 200, tier: "대형", test: (c) => c.sessionCount >= 100 },
   { num: 5, id: "first_hour", name: "첫 시간의 기록", cond: "누적 순공시간 1시간", category: "누적시간", reward: 30, tier: "소형", test: (c) => c.effectiveMinTotal >= 60 },
@@ -162,14 +162,14 @@ export const ACHIEVEMENTS: Achievement[] = [
   { num: 13, id: "promise_3", name: "3일의 약속", cond: "3일 연속 공부", category: "연속기록", reward: 50, tier: "소형", test: (c) => c.streak >= 3 },
   { num: 14, id: "week_challenge", name: "일주일 챌린지", cond: "7일 연속 스트릭", category: "연속기록", reward: 150, tier: "중형", test: (c) => c.streak >= 7 },
   { num: 15, id: "month_miracle", name: "한 달의 기적", cond: "30일 연속 스트릭", category: "연속기록", reward: 400, tier: "대형", test: (c) => c.streak >= 30 },
-  { num: 16, id: "dawn_otter", name: "새벽형 수달", cond: "06:00 이전 세션 시작", category: "특수", reward: 50, tier: "소형", test: (c) => c.lastStartHour < 6 },
-  { num: 17, id: "owl_otter", name: "올빼미 수달", cond: "00:00~04:00 세션 시작", category: "특수", reward: 50, tier: "소형", test: (c) => c.lastStartHour >= 0 && c.lastStartHour < 4 },
+  { num: 16, id: "dawn_otter", name: "새벽형 Otti", cond: "06:00 이전 세션 시작", category: "특수", reward: 50, tier: "소형", test: (c) => c.lastStartHour < 6 },
+  { num: 17, id: "owl_otter", name: "올빼미 Otti", cond: "00:00~04:00 세션 시작", category: "특수", reward: 50, tier: "소형", test: (c) => c.lastStartHour >= 0 && c.lastStartHour < 4 },
   { num: 18, id: "weekend_warrior", name: "주말 전사", cond: "토·일 이틀 연속 공부", category: "특수", reward: 50, tier: "소형", test: (c) => c.weekendStreak },
   { num: 19, id: "marathoner", name: "마라토너", cond: "단일 세션 3시간 이상", category: "특수", reward: 80, tier: "중형", test: (c) => c.lastSessionEffectiveSec >= 10800 },
   { num: 20, id: "perfect_day", name: "완벽한 하루", cond: "하루 목표 100% 달성", category: "목표달성", reward: 50, tier: "소형", test: (c) => c.dailyGoalMet },
   { num: 21, id: "dday_guardian", name: "D-day 수호자", cond: "등록 일정 D-3부터 매일 공부", category: "일정연계", reward: 100, tier: "중형", test: () => false },
-  { num: 22, id: "level_10", name: "레벨 10 달성", cond: "수달 Lv.10 도달", category: "레벨", reward: 100, tier: "중형", test: (c) => c.level >= 10 },
-  { num: 23, id: "level_20", name: "레벨 20 달성", cond: "수달 Lv.20 도달", category: "레벨", reward: 250, tier: "대형", test: (c) => c.level >= 20 },
+  { num: 22, id: "level_10", name: "레벨 10 달성", cond: "Otti Lv.10 도달", category: "레벨", reward: 100, tier: "중형", test: (c) => c.level >= 10 },
+  { num: 23, id: "level_20", name: "레벨 20 달성", cond: "Otti Lv.20 도달", category: "레벨", reward: 250, tier: "대형", test: (c) => c.level >= 20 },
   { num: 24, id: "shell_rich", name: "조개 부자", cond: "누적 조개 1,000개", category: "재화", reward: 0, tier: "칭호", test: (c) => c.shellsEarnedTotal >= 1000 },
 ];
 

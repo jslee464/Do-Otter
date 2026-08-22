@@ -2,6 +2,7 @@
 /* =====================================================================
  *  기록 / 통계 뷰  — 담당: 기록·통계
  * ===================================================================== */
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import { IMG, dstr, fmtDur, type LV } from "../shared";
 import { TopBar } from "../components/ui";
@@ -70,7 +71,7 @@ export default function StatsView({
   });
 
   return (
-    <div className="view">
+    <div className="view stats-view">
       <TopBar state={state} lv={lv} />
 
       {/* 오늘 요약 링 */}
@@ -145,9 +146,9 @@ export default function StatsView({
       </div>
 
       {/* AI 코멘트 */}
-      <div className="section-title">수달 AI 코멘트</div>
+      <div className="section-title">Otti AI 코멘트</div>
       <div className="ai-card">
-        <img src={`${IMG}/otter_study.png`} width={54} alt="" />
+        <Image src={`${IMG}/otter_study.png`} width={54} height={54} alt="" />
         <div className="ai-text">{comment}</div>
       </div>
 

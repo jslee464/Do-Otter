@@ -4,12 +4,13 @@
  *  UI는 app/views/*, app/components/* 로 분리되어 있습니다.
  *  ⚠️ 여러 명이 함께 쓰는 통합 지점 — 상태/핸들러 변경 시 팀에 공유하세요.
  * ===================================================================== */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   addChat,
   addSchedule,
   addSessionLog,
   deleteSchedule,
+  defaultState,
   getChat,
   getSchedules,
   getSessionLogs,
@@ -23,16 +24,13 @@ import {
 } from "../lib/backend";
 import {
   AchCtx,
-  calcDday,
   calcSession,
   checkAchievements,
-  getUrgencyTier,
   HARMFUL,
   itemById,
   levelState,
   levelUpShells,
   OtterItem,
-  pickBubble,
   SHELL,
 } from "../lib/logic";
 import {
@@ -51,11 +49,18 @@ import StatsView from "./views/StatsView";
 import CalendarView from "./views/CalendarView";
 import CharacterView from "./views/CharacterView";
 import SettingsView from "./views/SettingsView";
+import ImpactView from "./views/ImpactView";
 import ChatView from "./views/ChatView";
 import ProAd from "./components/ProAd";
 
-export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
-  const [tab, setTab] = useState<Tab>("home");
+export default function MainApp({
+  onSignOut,
+  preview,
+}: {
+  onSignOut: () => void;
+  preview?: "home" | "impact" | "complete";
+}) {
+  const [tab, setTab] = useState<Tab>(preview === "impact" ? "impact" : "home");
   const [darkMode, setDarkMode] = useState(() =>
     typeof window !== "undefined" && window.localStorage.getItem("do-otter-theme") === "dark"
   );
@@ -67,7 +72,8 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
 
   // timer
   const [phase, setPhase] = useState<Phase>("idle");
-  const [targetMin, setTargetMin] = useState(0);
+  const [targetMin, setTargetMin] = useState(25);
+  const [goalName, setGoalName] = useState("");
   const [studySec, setStudySec] = useState(0); // 총 타이머 시간
   const [harmfulSec, setHarmfulSec] = useState(0);
   const [stopSec, setStopSec] = useState(0);
@@ -75,29 +81,51 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
   const [contHarmful, setContHarmful] = useState(0);
   const [alarm, setAlarm] = useState<string | null>(null);
 
-  const [outcome, setOutcome] = useState<SessionOutcome | null>(null);
+  const [outcome, setOutcome] = useState<SessionOutcome | null>(() =>
+    preview === "complete"
+      ? {
+          effectiveSec: 25 * 60,
+          harmfulSec: 0,
+          qualityRatio: 1,
+          expEarned: 25,
+          oldLevel: 1,
+          newLevel: 1,
+          shellsGained: 0,
+          achievements: [],
+          goalReached: false,
+        }
+      : null,
+  );
   const [oops, setOops] = useState(false);
-  const finishRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 수달이 LLM (챗봇 + 홈 터치 멘트)
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMsgs, setChatMsgs] = useState<ChatRow[]>([]);
   const [chatBusy, setChatBusy] = useState(false);
-  const [tapLine, setTapLine] = useState<string | null>(null);
-  const [tapBusy, setTapBusy] = useState(false);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
+    if (preview) {
+      setState({
+        ...defaultState("미리보기"),
+        effectiveSeconds: 240 * 60,
+        totalTimerSeconds: 240 * 60,
+        sessionCount: 8,
+      });
+      setSchedules([]);
+      setLogs([]);
+      return;
+    }
     setState(await loadState());
     setSchedules(await getSchedules());
     setLogs(await getSessionLogs());
-  }
+  }, [preview]);
   useEffect(() => {
-    refresh();
-  }, []);
+    void refresh();
+  }, [refresh]);
 
   // 첫 공부를 마친 사용자가 앱을 다시 열었을 때만 Pro 안내 표시
   useEffect(() => {
-    if (!state || proAdChecked.current) return;
+    if (!state || preview || proAdChecked.current) return;
     proAdChecked.current = true;
     if (state.sessionCount < 1) return;
 
@@ -105,7 +133,7 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
       window.localStorage.getItem(`do-otter-pro-hidden-until:${state.username}`) ?? 0,
     );
     if (Date.now() >= hiddenUntil) setShowProAd(true);
-  }, [state]);
+  }, [state, preview]);
 
   // 1초 틱
   useEffect(() => {
@@ -181,32 +209,8 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
     }
   }
 
-  async function tapOtter() {
-    if (!state || tapBusy) return;
-    setTapBusy(true);
-    setTapLine("음…");
-    try {
-      const res = await fetch("/api/otter-line", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildContext(state, logs, schedules)),
-      });
-      const data = await res.json();
-      setTapLine(data.line || "오늘도 화이팅! 🦦");
-    } catch {
-      setTapLine("오늘도 같이 공부하자! 🦦");
-    } finally {
-      setTapBusy(false);
-      setTimeout(() => setTapLine(null), 6000); // 6초 후 원래 말풍선으로
-    }
-  }
-
   /* ---------------- 세션 컨트롤 ---------------- */
-  function startSelecting() {
-    setPhase("selecting");
-  }
-  function beginSession(min: number) {
-    setTargetMin(min);
+  function beginSession() {
     setStudySec(0);
     setHarmfulSec(0);
     setStopSec(0);
@@ -323,13 +327,7 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
     setHarmfulSec(0);
     setStopSec(0);
     setContHarmful(0);
-  }
-
-  function stopDown() {
-    finishRef.current = setTimeout(finishSession, 700);
-  }
-  function stopUp() {
-    if (finishRef.current) clearTimeout(finishRef.current);
+    setTab("impact");
   }
 
   /* ---------------- 설정 / 커스텀 / 일정 ---------------- */
@@ -387,7 +385,7 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
     ];
     setState(next);
     await saveState(next);
-    setAlarm(`${item.name} 구매 완료! 수달이가 착용했어요 ${item.emoji}`);
+    setAlarm(`${item.name} 구매 완료! Otti가 착용했어요 ${item.emoji}`);
   }
 
   async function toggleEquip(item: OtterItem) {
@@ -413,17 +411,6 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
     await deleteSchedule(id);
     setSchedules(await getSchedules());
   }
-
-  // 메인 말풍선 (D-day 티어)
-  const bubble = useMemo(() => {
-    const upcoming = schedules
-      .map((s) => ({ ...s, dday: calcDday(s.eventDate) }))
-      .filter((s) => s.dday >= 0)
-      .sort((a, b) => a.dday - b.dday)[0];
-    if (!upcoming) return pickBubble("일정없음", "", 0, schedules.length);
-    const tier = getUrgencyTier(upcoming.dday);
-    return pickBubble(tier, upcoming.title, upcoming.dday, upcoming.dday + upcoming.title.length);
-  }, [schedules]);
 
   if (!state) {
     return (
@@ -451,20 +438,16 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
             phase={phase}
             studySec={studySec}
             targetMin={targetMin}
-            harmfulActive={harmfulActive}
-            bubble={bubble}
-            onPlay={startSelecting}
-            onSelect={beginSession}
+            goalName={goalName}
+            onGoalNameChange={setGoalName}
+            onDurationChange={setTargetMin}
+            onStart={beginSession}
             onPause={() => setPhase("paused")}
             onResume={() => setPhase("running")}
-            onToggleHarmful={toggleHarmful}
-            stopDown={stopDown}
-            stopUp={stopUp}
-            equipped={state.equippedItems}
-            onTapOtter={tapOtter}
-            tapLine={tapLine}
+            onFinish={() => void finishSession()}
           />
         )}
+        {tab === "impact" && <ImpactView state={state} lv={lv} />}
         {tab === "calendar" && (
           <CalendarView
             state={state}

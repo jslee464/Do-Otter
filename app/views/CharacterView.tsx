@@ -69,7 +69,7 @@ export default function CharacterView({
       <div className="char-sub">{state.streak}일 연속 집중 중이에요!</div>
 
       <div className="section-title">
-        수달 커스텀 <span className="count-chip">보유 {state.ownedItems.length}개</span>
+        Otti 커스텀 <span className="count-chip">보유 {state.ownedItems.length}개</span>
       </div>
       <div className="shop-grid">
         {sortedItems.map((it) => {

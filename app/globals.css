@@ -1852,6 +1852,28 @@ img {
   background: #d8f0cf;
   color: #4e8a3a;
 }
+.mode-chip.online {
+  background: #d8f0cf;
+  color: #4e8a3a;
+}
+.mode-chip.checking {
+  background: #e8edf2;
+  color: #66718f;
+}
+.mode-chip.offline {
+  background: #f9dfd8;
+  color: #a54f3f;
+}
+.auth-connection-note {
+  margin: -8px 0 16px;
+  padding: 11px 12px;
+  border: 1px solid #efc8be;
+  border-radius: 10px;
+  background: #fff5f2;
+  color: #91493c;
+  font-size: 12px;
+  line-height: 1.5;
+}
 
 /* ==================================================================
  *  PHASE 2 — EXP/타이머/기록/일정/설정 추가 스타일

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import {
   backendMode,
@@ -12,8 +13,16 @@ import {
   signUp,
   type BlockedApp,
 } from "../lib/backend";
+import { checkSupabaseConnection } from "../lib/supabase";
+import { RiverScene, ToggleSwitch } from "./components/product";
 
 const IMG = "/images";
+
+const INTRO_ART = {
+  1: "/images/onboarding/river-polluted.png",
+  2: "/images/onboarding/otti-arrives.png",
+  3: "/images/onboarding/river-cleanup.png",
+} as const;
 
 type Step =
   | "intro1"
@@ -146,6 +155,25 @@ function IntroDots({ current }: { current: 1 | 2 | 3 }) {
   );
 }
 
+function IntroBackground({ screen }: { screen: 1 | 2 | 3 }) {
+  const alt = {
+    1: "알림과 방해 요소로 오염된 강",
+    2: "오염된 강을 발견한 Otti",
+    3: "Otti와 함께 깨끗하게 청소하는 강",
+  }[screen];
+
+  return (
+    <Image
+      className="intro-background"
+      src={INTRO_ART[screen]}
+      alt={alt}
+      fill
+      priority
+      sizes="(max-width: 480px) 100vw, 366px"
+    />
+  );
+}
+
 function IntroScreen({
   screen,
   onNext,
@@ -162,14 +190,18 @@ function IntroScreen({
       <div className="ob-intro intro-3">
         <IntroStatusBar />
         <main className="intro-final">
-          <h1>
-            방해되는 앱은 잠시 쉬고,
-            <br />
-            집중은 오래 이어가요.
-          </h1>
+          <IntroBackground screen={3} />
+          <div className="intro-copy">
+            <h1>집중할수록 강이 다시 흐르기 시작해요.</h1>
+            <p>
+              내 집중이 Otti의 강 청소와 가상 강 회복으로
+              <br />
+              <span className="intro-forced-line">이어져요.</span>
+            </p>
+          </div>
           <div className="intro-actions">
             <button className="intro-start" onClick={onStart}>
-              시작하기 <span aria-hidden="true">→</span>
+              함께 시작하기 <span aria-hidden="true">→</span>
             </button>
             <p>
               이미 계정이 있으신가요?{" "}
@@ -195,23 +227,23 @@ function IntroScreen({
         onClick={onNext}
         aria-label={`온보딩 ${screen} 화면, 다음 화면으로 이동`}
       >
-        <div className="intro-visual">
-          <img
-            src={`${IMG}/${first ? "onboarding-peek.jpg" : "onboarding-cheer.jpg"}`}
-            alt={first ? "벽 뒤에서 고개를 내민 수달" : "두 팔을 들고 응원하는 수달"}
-          />
+        <IntroBackground screen={screen} />
+        <div className="intro-copy">
+          <h1>
+            {first
+              ? "집중을 방해하는 것들이 강을 막고 있어요."
+              : "Otti가 강을 청소하러 왔어요."}
+          </h1>
+          <p>
+            {first
+              ? <>
+                  알림, SNS, 짧은 영상의 흔적이 물길을 가로막고
+                  <br />
+                  <span className="intro-forced-line">있어요.</span>
+                </>
+              : "강이 다시 흐를 수 있도록 Otti와 함께 도와주세요."}
+          </p>
         </div>
-        <h1>
-          {first ? (
-            "집중이 잘 흐트러지나요?"
-          ) : (
-            <>
-              다시 집중할 수 있도록
-              <br />
-              <span className="intro-brand">Do-Otter</span>가 도와드릴게요.
-            </>
-          )}
-        </h1>
         <IntroDots current={screen} />
       </button>
       <div className="intro-home-indicator" aria-hidden="true" />
@@ -234,6 +266,20 @@ function Auth({
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [connection, setConnection] = useState<"demo" | "checking" | "online" | "offline">(
+    backendMode === "demo" ? "demo" : "checking",
+  );
+
+  useEffect(() => {
+    if (backendMode === "demo") return;
+    let active = true;
+    void checkSupabaseConnection().then((online) => {
+      if (active) setConnection(online ? "online" : "offline");
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function submit() {
     setErr("");
@@ -264,10 +310,22 @@ function Auth({
           {mode === "login"
             ? "아이디와 비밀번호를 입력해주세요."
             : "아이디와 비밀번호로 시작해요."}{" "}
-          <span className={`mode-chip ${backendMode === "supabase" ? "live" : "demo"}`}>
-            {backendMode === "supabase" ? "● Supabase 연결" : "● 데모 모드"}
+          <span className={`mode-chip ${connection}`}>
+            {connection === "online"
+              ? "● Supabase 연결"
+              : connection === "offline"
+                ? "● 연결 오류"
+                : connection === "checking"
+                  ? "● 연결 확인 중"
+                  : "● 데모 모드"}
           </span>
         </div>
+
+        {connection === "offline" && (
+          <div className="auth-connection-note" role="status">
+            Supabase 프로젝트에 연결할 수 없어요. 프로젝트 URL과 상태를 확인해주세요.
+          </div>
+        )}
 
         <div className="seg">
           <button
@@ -489,6 +547,7 @@ function Apps({ progress, onNext }: { progress: number; onNext: () => void }) {
   const allApps = Array.from(
     new Map([...customApps, ...APPS].map((app) => [app.key, app])).values(),
   );
+  const recommended = new Set(["instagram", "youtube", "tiktok"]);
 
   function toggle(k: string) {
     const n = new Set(sel);
@@ -549,26 +608,32 @@ function Apps({ progress, onNext }: { progress: number; onNext: () => void }) {
         <ProgressDots n={ORDER.length} i={progress} />
         <div className="ob-title">방해되는 앱을 골라주세요</div>
         <div className="ob-sub">
-          공부하는 동안 이 앱들을 켜면 Do-Otter가 화나요.
+          집중을 방해하는 앱을 선택해 두세요.
           <br />
-          나중에 바꿀 수 있어요.
+          웹에서는 선택 상태만 저장하며 실제 차단은 실행하지 않아요.
         </div>
-        <div className="app-grid">
+        <div className="app-list">
           {allApps.map((a) => (
             <div
               key={a.key}
-              className={`app-tile ${sel.has(a.key) ? "on" : ""}`}
-              onClick={() => toggle(a.key)}
+              className={`app-row ${sel.has(a.key) ? "on" : ""}`}
             >
-              <span className="acheck">✓</span>
               <div className="aemoji">
                 {a.icon ? (
-                  <img src={a.icon} alt={`${a.name} 아이콘`} />
+                  <Image src={a.icon} alt={`${a.name} 아이콘`} width={48} height={48} />
                 ) : (
                   <span aria-hidden="true">{a.name.slice(0, 1)}</span>
                 )}
               </div>
-              <div className="aname">{a.name}</div>
+              <div className="app-row-copy">
+                <div className="aname">{a.name}</div>
+                {recommended.has(a.key) && <span>차단 추천</span>}
+              </div>
+              <ToggleSwitch
+                checked={sel.has(a.key)}
+                onChange={() => toggle(a.key)}
+                label={`${a.name} 선택`}
+              />
             </div>
           ))}
         </div>
@@ -580,6 +645,9 @@ function Apps({ progress, onNext }: { progress: number; onNext: () => void }) {
             {pickerNote}
           </div>
         )}
+        <p className="native-block-note">
+          실제 앱 차단은 iOS·Android의 네이티브 권한 연동 후 사용할 수 있어요.
+        </p>
       </div>
       <div className="ob-foot apps-foot">
         <button className="primary-btn" onClick={next} disabled={busy}>
@@ -656,7 +724,8 @@ function CalendarConnect({
 
 /* --------------------------- 6. 튜토리얼 --------------------------- */
 const TUT = [
-  { emoji: "🏠", tt: "메인 화면", td: "공부 타이머 시작 버튼을 누르면 Study Mode가 시작돼요. 집중한 만큼 조개와 점수를 얻어요.", spot: 2 },
+  { emoji: "🏠", tt: "메인 화면", td: "25분 타이머를 조정하고 ‘집중 시작’을 누르면 가상 강 청소가 시작돼요.", spot: 2 },
+  { emoji: "🌊", tt: "영향", td: "내 집중으로 회복된 가상 강과 캠페인 준비 상태를 확인해요.", spot: 0 },
   { emoji: "📊", tt: "통계", td: "집중을 완료하면 총 공부시간, 외부 앱 사용시간 기록을 볼 수 있어요.", spot: 1 },
   { emoji: "📖", tt: "일정", td: "시험과 과제 D-day를 캘린더에서 확인해요", spot: 3 },
   { emoji: "⚙️", tt: "설정", td: "방해 앱 차단, 알림, 캘린더 연동을 관리해요.", spot: 4 },
@@ -689,7 +758,7 @@ function Tutorial({ onFinish }: { onFinish: () => void }) {
           className="primary-btn"
           onClick={() => (last ? onFinish() : setI(i + 1))}
         >
-          {last ? "첫 공부 시작하기 🦦" : "다음"}
+          {last ? "첫 집중 시작하기" : "다음"}
         </button>
         {!last && (
           <button className="ghost-btn" onClick={onFinish}>
@@ -704,13 +773,13 @@ function Tutorial({ onFinish }: { onFinish: () => void }) {
 function MockHome() {
   return (
     <div className="tut-mock">
-      <div style={{ padding: "60px 24px" }}>
-        <div className="avatar-wrap">
-          <div className="avatar">
-            <img src={`${IMG}/otter_default1.png`} alt="" />
-          </div>
+      <div className="tut-mock-inner">
+        <RiverScene stage="blocked" className="tut-river" />
+        <div className="tut-focus-card">
+          <span>집중 시간</span>
+          <strong>25:00</strong>
+          <button type="button">집중 시작</button>
         </div>
-        <div className="timer">00:00</div>
       </div>
     </div>
   );

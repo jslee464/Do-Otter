@@ -3,6 +3,7 @@
  *  수달이 챗봇 뷰  — 담당: 수달이 AI
  *  (API: /api/chat, 홈 터치 멘트: /api/otter-line, 프롬프트: lib/llm.ts)
  * ===================================================================== */
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { IMG } from "../shared";
 import type { ChatRow } from "../../lib/backend";
@@ -38,9 +39,9 @@ export default function ChatView({
         <button className="chat-back" onClick={onClose} aria-label="뒤로">
           ‹
         </button>
-        <img className="chat-ava" src={`${IMG}/character_flat.png`} alt="수달이" />
+        <Image className="chat-ava" src={`${IMG}/character_flat.png`} alt="Otti" width={72} height={72} />
         <div>
-          <div className="chat-name">수달이</div>
+          <div className="chat-name">Otti</div>
           <div className="chat-status">● 항상 네 곁에 있어</div>
         </div>
       </div>
@@ -48,7 +49,7 @@ export default function ChatView({
       <div className="chat-body" ref={bodyRef}>
         {msgs.length === 0 && (
           <div className="chat-empty">
-            <img className="chat-empty-character" src={`${IMG}/character_fish.jpg`} alt="수달이" />
+            <Image className="chat-empty-character" src={`${IMG}/character_fish.jpg`} alt="Otti" width={512} height={512} />
             <div className="ce-t">안녕 {username}! 🦦</div>
             <div className="ce-d">공부 고민, 계획, 뭐든 편하게 얘기해봐.</div>
           </div>
@@ -80,7 +81,7 @@ export default function ChatView({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="수달이에게 말 걸기…"
+          placeholder="Otti에게 말 걸기…"
         />
         <button className="chat-send" onClick={send} disabled={busy || !text.trim()}>
           ↑

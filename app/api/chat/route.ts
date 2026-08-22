@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     const msg =
       e?.message === "NO_KEY"
-        ? "지금은 수달이가 살짝 졸려서 대답을 못 해… (DeepSeek 키 미설정) 그래도 공부는 응원할게! 🦦"
+        ? "지금은 Otti가 살짝 졸려서 대답을 못 해… (DeepSeek 키 미설정) 그래도 공부는 응원할게! 🦦"
         : "앗, 잠깐 딴생각했어. 다시 한 번만 말해줄래? 🦦";
     return NextResponse.json({ reply: msg });
   }
