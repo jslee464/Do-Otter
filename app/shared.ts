@@ -10,7 +10,13 @@ import type { OtterContext } from "../lib/llm";
 
 export const IMG = "/images";
 
-export type Tab = "impact" | "character" | "stats" | "home" | "calendar" | "settings";
+export type Tab =
+  | "impact"
+  | "stats"
+  | "home"
+  | "calendar"
+  | "settings"
+  | "customize";
 export type Phase = "idle" | "selecting" | "running" | "paused";
 export type LV = { level: number; currentExp: number; nextReq: number };
 export type SessionOutcome = {

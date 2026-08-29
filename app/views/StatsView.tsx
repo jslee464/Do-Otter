@@ -5,7 +5,6 @@
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { IMG, dstr, fmtDur, type LV } from "../shared";
-import { TopBar } from "../components/ui";
 import { ACHIEVEMENTS, aiComment, type Achievement } from "../../lib/logic";
 import type { SessionLog, UserState } from "../../lib/backend";
 
@@ -71,11 +70,14 @@ export default function StatsView({
   });
 
   return (
-    <div className="view stats-view">
-      <TopBar state={state} lv={lv} />
+    <div className="view hf-stats">
+      <header className="records-header">
+        <h1>집중 기록</h1>
+        <div><span>🐚 {state.shells}</span><button>🔔</button></div>
+      </header>
 
       {/* 오늘 요약 링 */}
-      <div className="section-title" style={{ marginTop: 14 }}>
+      <div className="section-title" style={{ marginTop: 4 }}>
         오늘 요약
       </div>
       <div className="card">
@@ -180,13 +182,13 @@ function Ring({ pct }: { pct: number }) {
   const off = c * (1 - pct / 100);
   return (
     <svg width="86" height="86" viewBox="0 0 86 86" className="ring">
-      <circle cx="43" cy="43" r={r} fill="none" stroke="#eaddc2" strokeWidth="9" />
+      <circle cx="43" cy="43" r={r} fill="none" stroke="#dcecf4" strokeWidth="9" />
       <circle
-        cx="43" cy="43" r={r} fill="none" stroke="#a9784e" strokeWidth="9"
+        cx="43" cy="43" r={r} fill="none" stroke="#2d7eae" strokeWidth="9"
         strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round"
         transform="rotate(-90 43 43)"
       />
-      <text x="43" y="49" textAnchor="middle" fontSize="20" fontWeight="800" fill="#7c5a3c">
+      <text x="43" y="49" textAnchor="middle" fontSize="20" fontWeight="800" fill="#216b98">
         {pct}%
       </text>
     </svg>

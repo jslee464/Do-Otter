@@ -14,15 +14,17 @@ import {
   type BlockedApp,
 } from "../lib/backend";
 import { checkSupabaseConnection } from "../lib/supabase";
-import { RiverScene, ToggleSwitch } from "./components/product";
+import pollutedRiver from "../오염된 강.png";
+import ottiArrival from "../Otti 등장.png";
+import riverCleanup from "../강 청소.png";
+import riverBefore from "../집중 전 막힌 강.png";
+import instagramIcon from "../01_instagram_pixel_kitsch_v2.png";
+import youtubeIcon from "../02_youtube_pixel_kitsch_v2.png";
+import tiktokIcon from "../03_tiktok_pixel_kitsch_v2.png";
+import xIcon from "../06_x_pixel_kitsch_v2.png";
+import { NavIcon, StatusBar, type NavIconKind } from "./components/ui";
 
 const IMG = "/images";
-
-const INTRO_ART = {
-  1: "/images/onboarding/river-polluted.png",
-  2: "/images/onboarding/otti-arrives.png",
-  3: "/images/onboarding/river-cleanup.png",
-} as const;
 
 type Step =
   | "intro1"
@@ -145,32 +147,13 @@ function IntroStatusBar() {
   );
 }
 
-function IntroDots({ current }: { current: 1 | 2 | 3 }) {
+function IntroDots({ active }: { active: number }) {
   return (
     <div className="intro-dots" aria-hidden="true">
-      {[1, 2, 3].map((dot) => (
-        <span key={dot} className={dot === current ? "on" : ""} />
+      {[0, 1, 2].map((dot) => (
+        <span key={dot} className={dot === active ? "on" : ""} />
       ))}
     </div>
-  );
-}
-
-function IntroBackground({ screen }: { screen: 1 | 2 | 3 }) {
-  const alt = {
-    1: "알림과 방해 요소로 오염된 강",
-    2: "오염된 강을 발견한 Otti",
-    3: "Otti와 함께 깨끗하게 청소하는 강",
-  }[screen];
-
-  return (
-    <Image
-      className="intro-background"
-      src={INTRO_ART[screen]}
-      alt={alt}
-      fill
-      priority
-      sizes="(max-width: 480px) 100vw, 366px"
-    />
   );
 }
 
@@ -185,67 +168,51 @@ function IntroScreen({
   onStart?: () => void;
   onLogin?: () => void;
 }) {
-  if (screen === 3) {
-    return (
-      <div className="ob-intro intro-3">
-        <IntroStatusBar />
-        <main className="intro-final">
-          <IntroBackground screen={3} />
-          <div className="intro-copy">
-            <h1>집중할수록 강이 다시 흐르기 시작해요.</h1>
-            <p>
-              내 집중이 Otti의 강 청소와 가상 강 회복으로
-              <br />
-              <span className="intro-forced-line">이어져요.</span>
-            </p>
-          </div>
+  const stories = {
+    1: {
+      image: pollutedRiver.src,
+      title: <>집중을 방해하는 것들이 강을<br />막고 있어요.</>,
+      description: "알림, SNS, 짧은 영상의 흔적이 물길을 가로막고 있어요.",
+    },
+    2: {
+      image: ottiArrival.src,
+      title: <>Otti가 강을 청소하러 왔어요.</>,
+      description: "강이 다시 흐를 수 있도록 Otti와 함께 도와주세요.",
+    },
+    3: {
+      image: riverCleanup.src,
+      title: <>집중할수록 강이 다시 흐르기<br />시작해요.</>,
+      description: "내 집중이 Otti의 강 청소와 가상 강 회복으로 이어져요.",
+    },
+  } as const;
+  const story = stories[screen];
+
+  return (
+    <div className={`ob-intro intro-${screen}`}>
+      <IntroStatusBar />
+      <div className="intro-tap">
+        <div className="intro-visual">
+          <img src={story.image} alt="Otti의 강 이야기" />
+        </div>
+        <div className="intro-copy">
+          <h1>{story.title}</h1>
+          <p>{story.description}</p>
+        </div>
+        {screen === 3 ? (
           <div className="intro-actions">
             <button className="intro-start" onClick={onStart}>
               함께 시작하기 <span aria-hidden="true">→</span>
             </button>
             <p>
               이미 계정이 있으신가요?{" "}
-              <button className="intro-login" onClick={onLogin}>
-                로그인
-              </button>
+              <button className="intro-login" onClick={onLogin}>로그인</button>
             </p>
           </div>
-          <IntroDots current={3} />
-        </main>
-        <div className="intro-home-indicator" aria-hidden="true" />
+        ) : (
+          <button className="intro-next-hit" onClick={onNext} aria-label="다음 화면" />
+        )}
+        <IntroDots active={screen - 1} />
       </div>
-    );
-  }
-
-  const first = screen === 1;
-
-  return (
-    <div className={`ob-intro intro-${screen}`}>
-      <IntroStatusBar />
-      <button
-        className="intro-tap"
-        onClick={onNext}
-        aria-label={`온보딩 ${screen} 화면, 다음 화면으로 이동`}
-      >
-        <IntroBackground screen={screen} />
-        <div className="intro-copy">
-          <h1>
-            {first
-              ? "집중을 방해하는 것들이 강을 막고 있어요."
-              : "Otti가 강을 청소하러 왔어요."}
-          </h1>
-          <p>
-            {first
-              ? <>
-                  알림, SNS, 짧은 영상의 흔적이 물길을 가로막고
-                  <br />
-                  <span className="intro-forced-line">있어요.</span>
-                </>
-              : "강이 다시 흐를 수 있도록 Otti와 함께 도와주세요."}
-          </p>
-        </div>
-        <IntroDots current={screen} />
-      </button>
       <div className="intro-home-indicator" aria-hidden="true" />
     </div>
   );
@@ -264,6 +231,7 @@ function Auth({
   const [mode, setMode] = useState<"signup" | "login">(initialMode);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [nickname, setNickname] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [connection, setConnection] = useState<"demo" | "checking" | "online" | "offline">(
@@ -302,22 +270,17 @@ function Auth({
 
   return (
     <>
-      <div className="ob-scroll auth-scroll">
+      <div className={`ob-scroll auth-scroll ${mode}`}>
+        <div className={`auth-hero ${mode}`}>
+          <img src={ottiArrival.src} alt="강가에서 인사하는 Otti" />
+        </div>
         <div className="ob-title">
           {mode === "signup" ? "회원가입" : "로그인"}
         </div>
         <div className="ob-sub">
-          {mode === "login"
-            ? "아이디와 비밀번호를 입력해주세요."
-            : "아이디와 비밀번호로 시작해요."}{" "}
-          <span className={`mode-chip ${connection}`}>
-            {connection === "online"
-              ? "● Supabase 연결"
-              : connection === "offline"
-                ? "● 연결 오류"
-                : connection === "checking"
-                  ? "● 연결 확인 중"
-                  : "● 데모 모드"}
+          {mode === "signup" ? "Otti와 함께 집중 습관을 시작해요." : "다시 만나서 반가워요!"}{" "}
+          <span className={`mode-chip ${backendMode === "supabase" ? "live" : "demo"}`}>
+            {backendMode === "supabase" ? "연결됨" : "데모"}
           </span>
         </div>
 
@@ -348,38 +311,103 @@ function Auth({
           </button>
         </div>
 
-        <div className="field">
-          <label>아이디</label>
+        <div className="field auth-field">
+          <AuthFieldIcon kind="user" />
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="otter_gongbu"
+            placeholder="아이디"
             autoCapitalize="none"
             autoCorrect="off"
           />
         </div>
-        <div className="field">
-          <label>비밀번호</label>
+        <div className="field auth-field">
+          <AuthFieldIcon kind="lock" />
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder={
-              mode === "signup"
-                ? "6자 이상으로 작성해주세요."
-                : "비밀번호를 입력해주세요."
-            }
+            placeholder="비밀번호"
             onKeyDown={(e) => e.key === "Enter" && submit()}
           />
         </div>
+        {mode === "signup" && (
+          <div className="field auth-field">
+            <AuthFieldIcon kind="smile" />
+            <input
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder="닉네임"
+            />
+          </div>
+        )}
         <div className="form-err">{err}</div>
+        {mode === "login" && (
+          <>
+            <button
+              className="auth-forgot"
+              type="button"
+              onClick={() => {
+                setMode("signup");
+                setErr("");
+              }}
+            >
+              회원가입하기
+            </button>
+            <div className="auth-or"><span>또는</span></div>
+            <button className="google-btn"><b>G</b> Google로 계속하기</button>
+          </>
+        )}
       </div>
       <div className="ob-foot auth-foot">
         <button className="primary-btn" onClick={submit} disabled={busy}>
           {busy ? "잠시만요…" : mode === "signup" ? "가입하고 시작하기" : "로그인"}
         </button>
+        {mode === "signup" && (
+          <p className="auth-account-switch">
+            이미 계정이 있으신가요?{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setMode("login");
+                setErr("");
+              }}
+            >
+              로그인
+            </button>
+          </p>
+        )}
       </div>
     </>
+  );
+}
+
+function AuthFieldIcon({ kind }: { kind: "user" | "lock" | "smile" }) {
+  return (
+    <span className="auth-field-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none">
+        {kind === "user" && (
+          <>
+            <circle cx="12" cy="7.5" r="3.5" />
+            <path d="M5 21v-1.7A7 7 0 0 1 12 12.5a7 7 0 0 1 7 6.8V21" />
+          </>
+        )}
+        {kind === "lock" && (
+          <>
+            <rect x="5" y="10" width="14" height="11" rx="2" />
+            <path d="M8.5 10V7.2a3.5 3.5 0 0 1 7 0V10" />
+            <path d="M12 14.5v2.5" />
+          </>
+        )}
+        {kind === "smile" && (
+          <>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M8.5 10h.01M15.5 10h.01" />
+            <path d="M8 14.5a5 5 0 0 0 8 0" />
+          </>
+        )}
+      </svg>
+    </span>
   );
 }
 
@@ -391,119 +419,93 @@ function Terms({
   progress: number;
   onNext: () => void;
 }) {
-  const [terms, setTerms] = useState(false);
-  const [privacy, setPrivacy] = useState(false);
-  const [noti, setNoti] = useState(false);
-  const [permissionNote, setPermissionNote] = useState("");
-  const all = terms && privacy && noti;
-  const canNext = terms && privacy; // 필수 2개
   const [busy, setBusy] = useState(false);
-
-  async function setNotificationConsent(value: boolean) {
-    if (!value) {
-      setNoti(false);
-      setPermissionNote("");
-      return;
-    }
-
-    if (!("Notification" in window)) {
-      setNoti(false);
-      setPermissionNote("이 기기에서는 알림 권한 요청을 지원하지 않습니다.");
-      return;
-    }
-
-    if (!window.isSecureContext) {
-      setNoti(false);
-      setPermissionNote("알림 권한은 보안 연결(HTTPS)에서 허용할 수 있습니다.");
-      return;
-    }
-
-    const permission =
-      Notification.permission === "granted"
-        ? "granted"
-        : await Notification.requestPermission();
-
-    if (permission === "granted") {
-      setNoti(true);
-      setPermissionNote("");
-      return;
-    }
-
-    setNoti(false);
-    setPermissionNote(
-      permission === "denied"
-        ? "휴대폰 설정에서 Do-Otter 알림을 허용해주세요."
-        : "알림 수신을 사용하려면 알림 권한을 허용해주세요.",
-    );
-  }
-
-  async function toggleAll() {
-    const v = !all;
-    setTerms(v);
-    setPrivacy(v);
-    await setNotificationConsent(v);
-  }
 
   async function next() {
     setBusy(true);
-    await saveConsent({ terms, privacy, notifications: noti, calendar: false });
+    await saveConsent({ terms: true, privacy: true, notifications: true, calendar: false });
     setBusy(false);
     onNext();
   }
 
   return (
     <>
+      <div className="consent-status-bar" aria-hidden="true">
+        <span>9:41</span>
+        <svg viewBox="0 0 58 16" fill="none">
+          <path d="M2 14V10M6 14V7M10 14V4M14 14V1" />
+          <path d="M21 6.5a10 10 0 0 1 14 0M24 9.5a6 6 0 0 1 8 0M27 12.3a2 2 0 0 1 2 0" />
+          <rect x="41" y="3" width="14" height="9" rx="2" />
+          <path d="M57 6v3" />
+          <rect className="consent-battery-fill" x="43" y="5" width="10" height="5" rx="1" />
+        </svg>
+      </div>
       <div className="ob-scroll terms-scroll">
         <ProgressDots n={ORDER.length} i={progress} />
-        <div className="ob-title">약관에 동의해주세요</div>
-        <div className="ob-sub">서비스 이용을 위해 아래 약관을 확인해주세요.</div>
-
-        <div className="term-all" onClick={() => void toggleAll()}>
-          <span className={`chk ${all ? "on" : ""}`}>✓</span>
-          전체 동의하기
+        <div className="consent-otti">
+          <img src={`${IMG}/do-otter_shield_2048.png`} alt="방패를 든 Otti" />
         </div>
-
-        <Row label="서비스 이용약관" tag="req" on={terms} set={setTerms} />
-        <Row label="개인정보 처리방침" tag="req" on={privacy} set={setPrivacy} />
-        <Row
-          label="알림 수신 (d-day·목표)"
-          tag="opt"
-          on={noti}
-          set={setNotificationConsent}
-        />
-        {permissionNote && (
-          <div className="permission-note" role="status">
-            {permissionNote}
-          </div>
-        )}
+        <div className="ob-title">집중을 방해하는 앱을<br />감지할까요?</div>
+        <div className="ob-sub">선택한 앱을 열면 Otti가 집중으로 돌아갈 수 있도록<br />알려줘요.</div>
+        <div className="consent-list">
+          <ConsentFeature icon="bell" title="선택한 앱 사용 감지" text="방해 앱 실행을 감지해요." />
+          <ConsentFeature icon="clock" title="집중 기록에 사용 시간 저장" text="나의 집중 흐름을 정확히 기록해요." />
+          <ConsentFeature icon="settings" title="언제든 설정에서 해제" text="원할 때 언제든 끌 수 있어요." />
+          <ConsentFeature icon="lock" title="메시지 내용은 읽지 않아요." text="개인 정보와 대화 내용은 안전하게 보호돼요." safe />
+        </div>
       </div>
       <div className="ob-foot terms-foot">
-        <button className="primary-btn" onClick={next} disabled={!canNext || busy}>
+        <button className="primary-btn" onClick={next} disabled={busy}>
           동의하고 계속
         </button>
+        <button className="ghost-btn" onClick={onNext}>나중에 설정</button>
       </div>
     </>
   );
+}
 
-  function Row({
-    label,
-    tag,
-    on,
-    set,
-  }: {
-    label: string;
-    tag: "req" | "opt";
-    on: boolean;
-    set: (v: boolean) => void | Promise<void>;
-  }) {
-    return (
-      <div className="term-row" onClick={() => void set(!on)}>
-        <span className={`chk ${on ? "on" : ""}`}>✓</span>
-        <span style={{ flex: 1 }}>{label}</span>
-        <span className={tag}>{tag === "req" ? "[필수]" : "[선택]"}</span>
-      </div>
-    );
-  }
+type ConsentIconKind = "bell" | "clock" | "settings" | "lock";
+
+function ConsentIcon({ kind }: { kind: ConsentIconKind }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {kind === "bell" && (
+        <>
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" />
+          <path d="M9.7 21h4.6" />
+        </>
+      )}
+      {kind === "clock" && (
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3.5 2" />
+        </>
+      )}
+      {kind === "settings" && (
+        <>
+          <circle cx="12" cy="12" r="7" />
+          <circle cx="12" cy="12" r="2.7" />
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" />
+        </>
+      )}
+      {kind === "lock" && (
+        <>
+          <rect x="5" y="10" width="14" height="11" rx="2" />
+          <path d="M8.5 10V7a3.5 3.5 0 0 1 7 0v3" />
+          <path d="M12 14.5v2.5" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function ConsentFeature({ icon, title, text, safe = false }: { icon: ConsentIconKind; title: string; text: string; safe?: boolean }) {
+  return (
+    <div className={`consent-feature ${safe ? "safe" : ""}`}>
+      <span className="cf-icon"><ConsentIcon kind={icon} /></span>
+      <div><b>{title}</b><small>{text}</small></div>
+    </div>
+  );
 }
 
 /* ------------------------- 4. 방해 앱 선택 ------------------------- */
@@ -536,6 +538,23 @@ const APPS: SelectableApp[] = [
   { key: "game", name: "게임", icon: "/images/app-icons/game.png" },
   { key: "coupang", name: "쿠팡", icon: "/images/app-icons/coupang.png" },
 ];
+const APP_EMOJI: Record<string, string> = {
+  instagram: "📸",
+  youtube: "▶️",
+  tiktok: "🎵",
+  kakaotalk: "💬",
+  x: "🐦",
+  netflix: "🎬",
+  webtoon: "📖",
+  game: "🎮",
+  coupang: "🛒",
+};
+const APP_ICONS: Record<string, string> = {
+  instagram: instagramIcon.src,
+  youtube: youtubeIcon.src,
+  tiktok: tiktokIcon.src,
+  x: xIcon.src,
+};
 
 function Apps({ progress, onNext }: { progress: number; onNext: () => void }) {
   const [sel, setSel] = useState<Set<string>>(
@@ -606,36 +625,27 @@ function Apps({ progress, onNext }: { progress: number; onNext: () => void }) {
     <>
       <div className="ob-scroll apps-scroll">
         <ProgressDots n={ORDER.length} i={progress} />
-        <div className="ob-title">방해되는 앱을 골라주세요</div>
+        <div className="apps-heading">
+          <img src={`${IMG}/face_happy.png`} alt="Otti" />
+          <div className="ob-title">집중할 때<br />잠시 멀리할 앱을 골라주세요.</div>
+        </div>
         <div className="ob-sub">
-          집중을 방해하는 앱을 선택해 두세요.
-          <br />
-          웹에서는 선택 상태만 저장하며 실제 차단은 실행하지 않아요.
+          추천 앱은 미리 선택했어요.<br />설정에서 언제든 변경할 수 있어요.
         </div>
         <div className="app-list">
-          {allApps.map((a) => (
+          {APPS.filter((a) => ["instagram", "youtube", "tiktok", "x"].includes(a.key)).map((a) => (
             <div
               key={a.key}
               className={`app-row ${sel.has(a.key) ? "on" : ""}`}
+              onClick={() => toggle(a.key)}
             >
-              <div className="aemoji">
-                {a.icon ? (
-                  <Image src={a.icon} alt={`${a.name} 아이콘`} width={48} height={48} />
-                ) : (
-                  <span aria-hidden="true">{a.name.slice(0, 1)}</span>
-                )}
-              </div>
-              <div className="app-row-copy">
-                <div className="aname">{a.name}</div>
-                {recommended.has(a.key) && <span>차단 추천</span>}
-              </div>
-              <ToggleSwitch
-                checked={sel.has(a.key)}
-                onChange={() => toggle(a.key)}
-                label={`${a.name} 선택`}
-              />
+              <div className="aemoji">{APP_ICONS[a.key] ? <img src={APP_ICONS[a.key]} alt="" /> : APP_EMOJI[a.key]}</div>
+              <div className="aname">{a.name}</div>
+              <span className="recommend">추천</span>
+              <span className="app-switch"><i /></span>
             </div>
           ))}
+          <div className="app-row add-more"><div className="aemoji">＋</div><div className="aname">직접 추가</div><span className="app-switch"><i /></span></div>
         </div>
         <button className="other-app-btn" onClick={() => void pickOtherApps()}>
           다른 앱 선택하기
@@ -651,8 +661,9 @@ function Apps({ progress, onNext }: { progress: number; onNext: () => void }) {
       </div>
       <div className="ob-foot apps-foot">
         <button className="primary-btn" onClick={next} disabled={busy}>
-          선택 완료
+          {sel.size}개 앱 선택 완료
         </button>
+        <button className="ghost-btn" onClick={onNext}>나중에 설정</button>
       </div>
     </>
   );
@@ -723,12 +734,39 @@ function CalendarConnect({
 }
 
 /* --------------------------- 6. 튜토리얼 --------------------------- */
-const TUT = [
-  { emoji: "🏠", tt: "메인 화면", td: "25분 타이머를 조정하고 ‘집중 시작’을 누르면 가상 강 청소가 시작돼요.", spot: 2 },
-  { emoji: "🌊", tt: "영향", td: "내 집중으로 회복된 가상 강과 캠페인 준비 상태를 확인해요.", spot: 0 },
-  { emoji: "📊", tt: "통계", td: "집중을 완료하면 총 공부시간, 외부 앱 사용시간 기록을 볼 수 있어요.", spot: 1 },
-  { emoji: "📖", tt: "일정", td: "시험과 과제 D-day를 캘린더에서 확인해요", spot: 3 },
-  { emoji: "⚙️", tt: "설정", td: "방해 앱 차단, 알림, 캘린더 연동을 관리해요.", spot: 4 },
+const TUTORIAL_NAV: { key: NavIconKind; label: string }[] = [
+  { key: "impact", label: "영향" },
+  { key: "stats", label: "기록" },
+  { key: "home", label: "홈" },
+  { key: "calendar", label: "일정" },
+  { key: "settings", label: "설정" },
+];
+
+const TUT: { icon: NavIconKind; tt: string; td: string; spot: number }[] = [
+  {
+    icon: "home",
+    tt: "메인 화면",
+    td: "공부 타이머 시작 버튼을 누르면 Study Mode가 시작돼요. 집중한 만큼 조개와 점수를 얻어요.",
+    spot: 2,
+  },
+  {
+    icon: "stats",
+    tt: "기록",
+    td: "집중을 완료하면 총 공부 시간과 방해 앱 사용 기록을 볼 수 있어요.",
+    spot: 1,
+  },
+  {
+    icon: "calendar",
+    tt: "일정",
+    td: "시험과 과제 D-day를 캘린더에서 확인해요.",
+    spot: 3,
+  },
+  {
+    icon: "settings",
+    tt: "설정",
+    td: "방해 앱 차단, 알림, 캘린더 연동을 관리해요.",
+    spot: 4,
+  },
 ];
 
 function Tutorial({ onFinish }: { onFinish: () => void }) {
@@ -737,21 +775,21 @@ function Tutorial({ onFinish }: { onFinish: () => void }) {
   const last = i === TUT.length - 1;
   return (
     <>
-      {/* 뒤에 흐릿한 메인 목업 */}
+      {/* 현재 메인 화면을 그대로 반영한 튜토리얼 배경 */}
       <MockHome />
       <div className="tut-dim" />
       <div className="tut-nav">
-        {[0, 1, 2, 3, 4].map((s) => (
+        {TUTORIAL_NAV.map((item, s) => (
           <div key={s} className={`tut-spot ${cur.spot === s ? "hi" : ""}`}>
             {cur.spot === s && (
               <span className="tut-nav-icon" aria-hidden="true">
-                {cur.emoji}
+                <NavIcon kind={item.key} active />
               </span>
             )}
           </div>
         ))}
       </div>
-      <div className="tut-card" style={{ bottom: 100 }}>
+      <div className="tut-card">
         <div className="tt">{cur.tt}</div>
         <div className="td">{cur.td}</div>
         <button
@@ -773,13 +811,55 @@ function Tutorial({ onFinish }: { onFinish: () => void }) {
 function MockHome() {
   return (
     <div className="tut-mock">
-      <div className="tut-mock-inner">
-        <RiverScene stage="blocked" className="tut-river" />
-        <div className="tut-focus-card">
-          <span>집중 시간</span>
-          <strong>25:00</strong>
-          <button type="button">집중 시작</button>
+      <StatusBar />
+      <div className="view hf-home hf-setup tutorial-home-view" aria-hidden="true">
+        <header className="home-heading">
+          <div>
+            <span>Otti와 오늘의 집중</span>
+            <h1>오늘은 강을 얼마나<br />회복시켜볼까요?</h1>
+          </div>
+          <button type="button" tabIndex={-1}>
+            <img src={`${IMG}/do-otter_face_2048.png`} alt="" />
+          </button>
+        </header>
+
+        <div className="focus-tip">
+          <img src={`${IMG}/do-otter_pointing_2048.png`} alt="" />
+          <b>25분 집중하면<br />강이 한 칸 더 맑아져요.</b>
         </div>
+
+        <div className="river-preview">
+          <img src={riverBefore.src} alt="" />
+        </div>
+
+        <section className="timer-setup-card">
+          <div className="timer-caption">집중 시간</div>
+          <div className="timer-editor">
+            <b>25:00</b>
+            <div>
+              <button type="button" tabIndex={-1}>−5분</button>
+              <button type="button" tabIndex={-1}>+5분</button>
+            </div>
+          </div>
+          <div className="minute-picks">
+            {[10, 25, 45, 60].map((minute) => (
+              <button key={minute} className={minute === 25 ? "on" : ""} type="button" tabIndex={-1}>
+                {minute}분
+              </button>
+            ))}
+          </div>
+          <input tabIndex={-1} aria-label="집중할 일" placeholder="예: 발표 자료 정리" />
+          <button className="hf-primary" type="button" tabIndex={-1}>집중 시작</button>
+        </section>
+      </div>
+
+      <div className="nav tutorial-base-nav" aria-hidden="true">
+        {TUTORIAL_NAV.map((item) => (
+          <div key={item.key} className={`nav-btn ${item.key === "home" ? "active" : ""}`}>
+            <NavIcon kind={item.key} active={item.key === "home"} />
+            <span className="nlabel">{item.label}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

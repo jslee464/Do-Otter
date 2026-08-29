@@ -13,11 +13,13 @@ export function StatusBar() {
   return (
     <div className="statusbar">
       <span>9:41</span>
-      <span className="sb-icons">
-        <span>▮▮▮</span>
-        <span>⌁</span>
-        <span>▭</span>
-      </span>
+      <svg className="system-status-icons" viewBox="0 0 58 16" fill="none" aria-hidden="true">
+        <path d="M2 14v-4M6 14V7M10 14V4M14 14V1" />
+        <path d="M21 6.5a10 10 0 0 1 14 0M24 9.5a6 6 0 0 1 8 0M27 12.3a2 2 0 0 1 2 0" />
+        <rect x="41" y="3" width="14" height="9" rx="2" />
+        <path d="M57 6v3" />
+        <rect className="system-battery-fill" x="43" y="5" width="10" height="5" rx="1" />
+      </svg>
     </div>
   );
 }
@@ -105,6 +107,49 @@ export function OtterAvatar({
   );
 }
 
+export type NavIconKind = Exclude<Tab, "customize">;
+
+export function NavIcon({ kind, active = false }: { kind: NavIconKind; active?: boolean }) {
+  return (
+    <svg className="nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {kind === "impact" && (
+        <>
+          <path d="M15.8 3.6a8.7 8.7 0 1 0 5 14.7 7.5 7.5 0 0 1-5-14.7Z" />
+          <path d="m18.7 3 .45 1.15 1.15.45-1.15.45-.45 1.15-.45-1.15-1.15-.45 1.15-.45L18.7 3ZM7.2 5.8l.3.75.75.3-.75.3-.3.75-.3-.75-.75-.3.75-.3.3-.75Z" />
+        </>
+      )}
+      {kind === "stats" && (
+        <>
+          <rect x="4" y="3" width="16" height="18" rx="3" />
+          <path d="M8 16v-4M12 16V8M16 16v-6" />
+        </>
+      )}
+      {kind === "home" && (
+        active ? (
+          <path className="nav-icon-fill" d="M2.8 10.5 12 2.7l9.2 7.8a1.4 1.4 0 0 1 .5 1.1v8.2a1.5 1.5 0 0 1-1.5 1.5h-5.1v-6.2H8.9v6.2H3.8a1.5 1.5 0 0 1-1.5-1.5v-8.2c0-.4.2-.8.5-1.1Z" />
+        ) : (
+          <>
+            <path d="m3 10.5 9-7.6 9 7.6" />
+            <path d="M4.2 9.6v10.2h5.2v-6h5.2v6h5.2V9.6" />
+          </>
+        )
+      )}
+      {kind === "calendar" && (
+        <>
+          <rect x="3.5" y="5" width="17" height="16" rx="3" />
+          <path d="M7.5 2.8v4.4M16.5 2.8v4.4M3.5 9.5h17" />
+        </>
+      )}
+      {kind === "settings" && (
+        <>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.1 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2.3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.1 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 8.5 4.1a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V2.3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.1a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 8.5c.14.38.36.72.66 1 .3.26.7.4 1.1.4h.09a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 export function BottomNav({
   tab,
   setTab,
@@ -112,12 +157,12 @@ export function BottomNav({
   tab: Tab;
   setTab: (t: Tab) => void;
 }) {
-  const items: { key: Tab; icon: string; label: string }[] = [
-    { key: "impact", icon: "🌊", label: "영향" },
-    { key: "stats", icon: "📊", label: "기록" },
-    { key: "home", icon: "🏠", label: "홈" },
-    { key: "calendar", icon: "📖", label: "일정" },
-    { key: "settings", icon: "⚙️", label: "설정" },
+  const items: { key: NavIconKind; label: string }[] = [
+    { key: "impact", label: "영향" },
+    { key: "stats", label: "기록" },
+    { key: "home", label: "홈" },
+    { key: "calendar", label: "일정" },
+    { key: "settings", label: "설정" },
   ];
   return (
     <div className="nav">
@@ -126,8 +171,9 @@ export function BottomNav({
           key={it.key}
           className={`nav-btn ${tab === it.key ? "active" : ""}`}
           onClick={() => setTab(it.key)}
+          aria-label={it.label}
         >
-          <span>{it.icon}</span>
+          <NavIcon kind={it.key} active={tab === it.key} />
           <span className="nlabel">{it.label}</span>
         </button>
       ))}

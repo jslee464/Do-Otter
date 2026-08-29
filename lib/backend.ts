@@ -356,7 +356,11 @@ export async function getSchedules(): Promise<ScheduleEvent[]> {
   if (backendMode === "demo") {
     const who = await currentUsername();
     if (!who) return [];
-    return ls<ScheduleEvent[]>(LS.schedPfx + who, defaultSchedules());
+    const key = LS.schedPfx + who;
+    const schedules = ls<ScheduleEvent[]>(key, defaultSchedules());
+    const cleaned = schedules.filter((schedule) => !schedule.id.startsWith("seed"));
+    if (cleaned.length !== schedules.length) setLs(key, cleaned);
+    return cleaned;
   }
   const id = await uid();
   if (!id) return [];
@@ -404,18 +408,9 @@ export async function deleteSchedule(id: string): Promise<void> {
   await supabase!.from("schedules").delete().eq("id", id).eq("user_id", u);
 }
 
-// 데모 최초 일정 (Figma 예시)
+// 데모 계정은 사용자가 직접 추가한 일정만 보여줍니다.
 function defaultSchedules(): ScheduleEvent[] {
-  const d = (offset: number) => {
-    const t = new Date();
-    t.setDate(t.getDate() + offset);
-    return t.toISOString().slice(0, 10);
-  };
-  return [
-    { id: "seed1", title: "통계학입문 시험", eventDate: d(2), source: "manual" },
-    { id: "seed2", title: "영화의 이해 시험", eventDate: d(4), source: "manual" },
-    { id: "seed3", title: "종강", eventDate: d(9), source: "manual" },
-  ];
+  return [];
 }
 
 /* =====================================================================

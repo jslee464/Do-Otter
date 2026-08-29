@@ -24,6 +24,7 @@ export default function ChatView({
   const [text, setText] = useState("");
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (msgs.length === 0 && !busy) return;
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" });
   }, [msgs, busy]);
   const quicks = ["오늘 뭐부터 할까?", "집중이 안 돼 😵", "동기부여 해줘", "내 공부 어때?"];
@@ -39,19 +40,25 @@ export default function ChatView({
         <button className="chat-back" onClick={onClose} aria-label="뒤로">
           ‹
         </button>
-        <Image className="chat-ava" src={`${IMG}/character_flat.png`} alt="Otti" width={72} height={72} />
         <div>
-          <div className="chat-name">Otti</div>
-          <div className="chat-status">● 항상 네 곁에 있어</div>
+          <div className="chat-name">Otti 공부 상담</div>
+          <div className="chat-status">● 집중 계획을 함께 세워요</div>
         </div>
       </div>
 
       <div className="chat-body" ref={bodyRef}>
         {msgs.length === 0 && (
-          <div className="chat-empty">
-            <Image className="chat-empty-character" src={`${IMG}/character_fish.jpg`} alt="Otti" width={512} height={512} />
-            <div className="ce-t">안녕 {username}! 🦦</div>
-            <div className="ce-d">공부 고민, 계획, 뭐든 편하게 얘기해봐.</div>
+          <div className="chat-reference">
+            <div className="sample-user">근골격계 시험이 이틀 남았는데<br />범위가 너무 많아.</div>
+            <div className="sample-otti"><img src={`${IMG}/face_happy.png`} alt="" /><span>지금은 틀린 문제 중심으로<br />압축해봐요.</span></div>
+            <div className="study-plan-card">
+              <h3>📋 &nbsp; 8시간 압축 계획</h3>
+              <div><span>🎯</span><b>틀린 문제만 집중 공략<small>핵심 개념 + 오답 노트</small></b></div>
+              <div><span>◷</span><b>2시간 단위 블록 학습<small>집중 → 복습 → 정리</small></b></div>
+              <div><span>☑</span><b>마지막 2시간은 실전 감각<small>기출 & 모의고사 풀이</small></b></div>
+            </div>
+            <img className="chat-peek" src={`${IMG}/otter_default1.png`} alt="Otti" />
+            <button className="chat-timer-start" onClick={() => onSend("25분 타이머로 시작할게")}>25분 타이머로 시작</button>
           </div>
         )}
         {msgs.map((m, i) => (

@@ -4,13 +4,13 @@
  *  UI는 app/views/*, app/components/* 로 분리되어 있습니다.
  *  ⚠️ 여러 명이 함께 쓰는 통합 지점 — 상태/핸들러 변경 시 팀에 공유하세요.
  * ===================================================================== */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addChat,
   addSchedule,
   addSessionLog,
-  deleteSchedule,
   defaultState,
+  deleteSchedule,
   getChat,
   getSchedules,
   getSessionLogs,
@@ -24,13 +24,15 @@ import {
 } from "../lib/backend";
 import {
   AchCtx,
+  calcDday,
   calcSession,
   checkAchievements,
-  HARMFUL,
+  getUrgencyTier,
   itemById,
   levelState,
   levelUpShells,
   OtterItem,
+  pickBubble,
   SHELL,
 } from "../lib/logic";
 import {
@@ -43,7 +45,12 @@ import {
   type Tab,
 } from "./shared";
 import { BottomNav, StatusBar } from "./components/ui";
-import { CongratsOverlay, OopsOverlay } from "./components/Overlays";
+import {
+  CongratsOverlay,
+  InterventionOverlay,
+  OopsOverlay,
+  type InterventionMode,
+} from "./components/Overlays";
 import HomeView from "./views/HomeView";
 import StatsView from "./views/StatsView";
 import CalendarView from "./views/CalendarView";
@@ -78,7 +85,6 @@ export default function MainApp({
   const [harmfulSec, setHarmfulSec] = useState(0);
   const [stopSec, setStopSec] = useState(0);
   const [harmfulActive, setHarmfulActive] = useState(false);
-  const [contHarmful, setContHarmful] = useState(0);
   const [alarm, setAlarm] = useState<string | null>(null);
 
   const [outcome, setOutcome] = useState<SessionOutcome | null>(() =>
@@ -97,11 +103,15 @@ export default function MainApp({
       : null,
   );
   const [oops, setOops] = useState(false);
+  const [intervention, setIntervention] = useState<InterventionMode | null>(null);
+  const finishRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 수달이 LLM (챗봇 + 홈 터치 멘트)
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMsgs, setChatMsgs] = useState<ChatRow[]>([]);
   const [chatBusy, setChatBusy] = useState(false);
+  const [tapLine, setTapLine] = useState<string | null>(null);
+  const [tapBusy, setTapBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     if (preview) {
@@ -135,6 +145,37 @@ export default function MainApp({
     if (Date.now() >= hiddenUntil) setShowProAd(true);
   }, [state, preview]);
 
+  // 레퍼런스 화면을 빠르게 확인할 수 있는 미리보기 딥링크 (#screen-09 ... #screen-27)
+  useEffect(() => {
+    const screen = Number(window.location.hash.replace("#screen-", ""));
+    if (!screen) return;
+    if ([9, 10, 11, 12, 13].includes(screen)) setTab("home");
+    if ([14, 15, 16].includes(screen)) setTab("stats");
+    if ([17, 18].includes(screen)) setTab("calendar");
+    if ([23, 24, 25, 26].includes(screen)) setTab("impact");
+    if (screen === 27) setTab("settings");
+    if (screen === 10) {
+      setTargetMin(25);
+      setStudySec(10);
+      setPhase("running");
+    }
+    if (screen === 12) setChatOpen(true);
+    if (screen === 13) {
+      setOutcome({
+        effectiveSec: 1450,
+        harmfulSec: 0,
+        qualityRatio: 0.96,
+        expEarned: 90,
+        oldLevel: 1,
+        newLevel: 1,
+        shellsGained: 90,
+        achievements: [],
+        goalReached: false,
+      });
+    }
+    if (screen === 22) setIntervention("sheet");
+  }, []);
+
   // 1초 틱
   useEffect(() => {
     if (phase !== "running" && phase !== "paused") return;
@@ -146,18 +187,10 @@ export default function MainApp({
       setStudySec((s) => s + 1);
       if (harmfulActive) {
         setHarmfulSec((h) => h + 1);
-        setContHarmful((c) => c + 1);
       }
     }, 1000);
     return () => clearInterval(id);
   }, [phase, harmfulActive]);
-
-  // 유해앱 알람 티어
-  useEffect(() => {
-    if (!harmfulActive) return;
-    if (contHarmful === HARMFUL.mildAtSec) setAlarm(HARMFUL.mild);
-    else if (contHarmful === HARMFUL.strongAtSec) setAlarm(HARMFUL.strong);
-  }, [contHarmful, harmfulActive]);
 
   // 목표 시간 도달 → 자동 완료
   useEffect(() => {
@@ -209,23 +242,45 @@ export default function MainApp({
     }
   }
 
+  async function tapOtter() {
+    if (!state || tapBusy) return;
+    setTapBusy(true);
+    setTapLine("음…");
+    try {
+      const res = await fetch("/api/otter-line", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildContext(state, logs, schedules)),
+      });
+      const data = await res.json();
+      setTapLine(data.line || "오늘도 화이팅! 🦦");
+    } catch {
+      setTapLine("오늘도 같이 공부하자! 🦦");
+    } finally {
+      setTapBusy(false);
+      setTimeout(() => setTapLine(null), 6000);
+    }
+  }
+
   /* ---------------- 세션 컨트롤 ---------------- */
-  function beginSession() {
+  function startSelecting() {
+    setPhase("selecting");
+  }
+  function beginSession(min: number) {
+    setTargetMin(min);
     setStudySec(0);
     setHarmfulSec(0);
     setStopSec(0);
-    setContHarmful(0);
     setHarmfulActive(false);
     setPhase("running");
   }
   function toggleHarmful() {
     if (harmfulActive) {
       setHarmfulActive(false);
-      setContHarmful(0);
-      setAlarm(HARMFUL.praise);
+      setIntervention(null);
     } else {
       setHarmfulActive(true);
-      setContHarmful(0);
+      setIntervention("sheet");
     }
   }
 
@@ -326,8 +381,13 @@ export default function MainApp({
     setStudySec(0);
     setHarmfulSec(0);
     setStopSec(0);
-    setContHarmful(0);
-    setTab("impact");
+  }
+
+  function stopDown() {
+    finishRef.current = setTimeout(finishSession, 700);
+  }
+  function stopUp() {
+    if (finishRef.current) clearTimeout(finishRef.current);
   }
 
   /* ---------------- 설정 / 커스텀 / 일정 ---------------- */
@@ -412,6 +472,16 @@ export default function MainApp({
     setSchedules(await getSchedules());
   }
 
+  const bubble = useMemo(() => {
+    const upcoming = schedules
+      .map((schedule) => ({ ...schedule, dday: calcDday(schedule.eventDate) }))
+      .filter((schedule) => schedule.dday >= 0)
+      .sort((a, b) => a.dday - b.dday)[0];
+    if (!upcoming) return pickBubble("일정없음", "", 0, schedules.length);
+    const tier = getUrgencyTier(upcoming.dday);
+    return pickBubble(tier, upcoming.title, upcoming.dday, upcoming.dday + upcoming.title.length);
+  }, [schedules]);
+
   if (!state) {
     return (
       <div className={`screen ${darkMode ? "theme-dark" : ""}`}>
@@ -438,16 +508,21 @@ export default function MainApp({
             phase={phase}
             studySec={studySec}
             targetMin={targetMin}
-            goalName={goalName}
-            onGoalNameChange={setGoalName}
-            onDurationChange={setTargetMin}
-            onStart={beginSession}
+            harmfulActive={harmfulActive}
+            bubble={bubble}
+            onPlay={startSelecting}
+            onSelect={beginSession}
             onPause={() => setPhase("paused")}
             onResume={() => setPhase("running")}
-            onFinish={() => void finishSession()}
+            onToggleHarmful={toggleHarmful}
+            stopDown={stopDown}
+            stopUp={stopUp}
+            equipped={state.equippedItems}
+            onTapOtter={tapOtter}
+            tapLine={tapLine}
           />
         )}
-        {tab === "impact" && <ImpactView state={state} lv={lv} />}
+        {tab === "impact" && <ImpactView state={state} />}
         {tab === "calendar" && (
           <CalendarView
             state={state}
@@ -458,7 +533,8 @@ export default function MainApp({
           />
         )}
         {tab === "stats" && <StatsView state={state} lv={lv} logs={logs} />}
-        {tab === "character" && (
+        {tab === "impact" && <ImpactView state={state} />}
+        {tab === "customize" && (
           <CharacterView state={state} lv={lv} onBuy={buyItem} onEquip={toggleEquip} />
         )}
         {tab === "settings" && (
@@ -467,7 +543,8 @@ export default function MainApp({
             lv={lv}
             onAd={watchAd}
             onOops={simulateOops}
-            onCustomize={() => setTab("character")}
+            onCustomize={() => setTab("customize")}
+            onImpact={() => setTab("impact")}
             dark={darkMode}
             onDarkChange={(value) => {
               setDarkMode(value);
@@ -492,6 +569,16 @@ export default function MainApp({
 
         {outcome && <CongratsOverlay o={outcome} onClose={closeOutcome} />}
         {oops && <OopsOverlay onClose={() => setOops(false)} />}
+        {intervention && (
+          <InterventionOverlay
+            mode={intervention}
+            onReturn={() => {
+              setHarmfulActive(false);
+              setIntervention(null);
+            }}
+            onContinue={() => setIntervention(null)}
+          />
+        )}
 
         {chatOpen && (
           <ChatView

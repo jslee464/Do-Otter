@@ -28,6 +28,11 @@ export default function Page() {
     return () => window.removeEventListener("hashchange", syncProAdPreview);
   }, []);
 
+  useEffect(() => {
+    const screen = Number(window.location.hash.replace("#screen-", ""));
+    if (screen >= 9 && screen <= 27) setView("app");
+  }, []);
+
   return (
     <div className="stage">
       <div className="tagline">
