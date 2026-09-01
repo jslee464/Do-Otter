@@ -317,6 +317,17 @@ img {
   transform: rotate(45deg);
   border-radius: 3px;
 }
+.ambient-label {
+  display: block;
+  width: max-content;
+  margin-bottom: 3px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: #efe3ca;
+  color: var(--brown-mid);
+  font-size: 9px;
+  font-weight: 800;
+}
 
 .timer {
   text-align: center;
@@ -900,6 +911,117 @@ img {
   font-size: 11px;
   opacity: 0.8;
   margin-top: 2px;
+}
+
+/* 이벤트형 RAG 개입 카드 */
+.rag-intervention {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 58;
+  width: min(340px, calc(100% - 30px));
+  max-height: 52%;
+  overflow-y: auto;
+  border-radius: 22px;
+  padding: 13px 15px;
+  background: #2a2018;
+  color: #fff;
+  box-shadow: 0 16px 34px -12px rgba(0, 0, 0, 0.65);
+  animation: dropin 0.3s ease;
+}
+.rag-intervention-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rag-intervention-head .bw-emoji {
+  font-size: 24px;
+}
+.rag-intervention-head button {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 20px;
+  line-height: 1;
+}
+.rag-intervention-line {
+  margin-top: 9px;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+.rag-label {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+.rag-label.grounded {
+  background: #d8efd0;
+  color: #3f6e34;
+}
+.rag-label.general {
+  background: #efe3ca;
+  color: #76563b;
+}
+.rag-label.emergency {
+  background: #f8d5cf;
+  color: #ad4334;
+}
+.rag-sources {
+  margin-top: 8px;
+  font-size: 11px;
+}
+.rag-sources summary {
+  cursor: pointer;
+  font-weight: 800;
+  opacity: 0.86;
+}
+.rag-source-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+}
+.rag-source {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 7px;
+  line-height: 1.3;
+}
+.rag-source-id {
+  border-radius: 6px;
+  padding: 2px 5px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 9px;
+  font-weight: 850;
+}
+.rag-source a,
+.rag-source > div > span {
+  color: inherit;
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.rag-source small {
+  display: block;
+  margin-top: 2px;
+  opacity: 0.72;
+  font-size: 9px;
+}
+.rag-retrieval,
+.rag-fallback {
+  margin-top: 7px;
+  font-size: 9px;
+  opacity: 0.68;
 }
 
 /* ==================================================================
@@ -1899,6 +2021,19 @@ img {
   font-size: 13px;
   margin-top: 4px;
 }
+.chat-message {
+  display: flex;
+  flex-direction: column;
+  max-width: 84%;
+}
+.chat-message.user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+.chat-message.assistant {
+  align-self: flex-start;
+  align-items: flex-start;
+}
 .chat-bubble {
   max-width: 78%;
   padding: 11px 14px;
@@ -1907,6 +2042,9 @@ img {
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
+}
+.chat-message .chat-bubble {
+  max-width: 100%;
 }
 .chat-bubble.user {
   align-self: flex-end;
@@ -1920,6 +2058,27 @@ img {
   color: var(--ink);
   border-bottom-left-radius: 6px;
   box-shadow: 0 4px 12px -8px rgba(120, 80, 40, 0.5);
+}
+.chat-rag-meta {
+  width: 100%;
+  margin-top: 5px;
+  padding-left: 4px;
+  color: var(--ink-soft);
+}
+.chat-rag-meta .rag-sources {
+  width: min(280px, 100%);
+  margin-top: 5px;
+  border-radius: 12px;
+  padding: 7px 9px;
+  background: rgba(255, 253, 248, 0.72);
+}
+.chat-rag-meta .rag-source-id {
+  background: #e8d8b8;
+  color: var(--brown-dark);
+}
+.chat-rag-meta .rag-source a,
+.chat-rag-meta .rag-source > div > span {
+  color: var(--brown-dark);
 }
 .chat-bubble.typing {
   display: flex;

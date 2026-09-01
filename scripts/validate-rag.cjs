@@ -29,6 +29,12 @@ const {
 } = require("../lib/rag/classify.ts");
 const { ragSituations } = require("../lib/rag/situations.ts");
 const { normalizeTemplateText } = require("../lib/rag/prompt.ts");
+const { groundedSystemPrompt } = require("../lib/rag/prompt.ts");
+const {
+  classificationCases,
+  emergencyCases,
+  retrievalCases,
+} = require("./rag-eval-cases.cjs");
 
 const issues = validateRagCorpus();
 assert.deepEqual(issues, [], issues.join("\n"));
@@ -40,12 +46,16 @@ assert.deepEqual(
 );
 assert.equal(ragSituations().length, 35, "기존 13개 + 신규 22개 RAG 상황이어야 합니다.");
 
-assert.equal(classifySituationByRules("시험이 내일인데 뭘 복습해야 하지?"), "A17");
-assert.equal(classifySituationByRules("과제 제출이 내일인데 아직 시작도 못 했어"), "A29");
-assert.equal(classifySituationByRules("불안해서 공부에 집중이 안 돼"), "A52");
-assert.equal(classifySituationByRules("알림을 계속 닫고 무시하게 돼"), "A50");
-assert.equal(classifySituationByRules("안녕 수달아"), null);
-assert.equal(isEmergency("갑자기 가슴이 너무 아프고 숨쉬기 힘들어"), true);
+for (const [input, expected] of classificationCases) {
+  assert.equal(
+    classifySituationByRules(input),
+    expected,
+    `분류 실패: "${input}"`
+  );
+}
+for (const [input, expected] of emergencyCases) {
+  assert.equal(isEmergency(input), expected, `응급 감지 실패: "${input}"`);
+}
 assert.equal(
   normalizeTemplateText("오늘은 {남은 범위}부터 하자."),
   "오늘은 남은 범위부터 하자."
@@ -65,6 +75,64 @@ assert.ok(streak);
 assert.ok(streak.evidence.some((item) => item.id === "R31"));
 assert.ok(evidenceSources(streak).every((source) => source.title && source.publisher));
 
+for (const testCase of retrievalCases) {
+  const hit = retrieve(testCase.situationId, {
+    query: testCase.query,
+    maxEvidence: 4,
+  });
+  assert.ok(hit, `검색 실패: ${testCase.situationId}`);
+  assert.equal(hit.retrieval.mode, "curated+keyword");
+  assert.ok(
+    hit.evidence.every((item) => hit.situation.evidenceIds.includes(item.id)),
+    `${testCase.situationId}에서 검수 후보군 밖 근거가 검색됐습니다.`
+  );
+  if (testCase.expectedFirst) {
+    assert.equal(hit.evidence[0]?.id, testCase.expectedFirst);
+  }
+  if (testCase.expectedIncluded) {
+    assert.ok(hit.evidence.some((item) => item.id === testCase.expectedIncluded));
+  }
+}
+
+for (const situation of ragSituations()) {
+  const hit = retrieve(situation.id);
+  assert.ok(hit);
+  assert.ok(hit.evidence.length > 0, `${situation.id}의 근거가 비어 있습니다.`);
+  assert.equal(
+    evidenceSources(hit).length,
+    hit.evidence.length,
+    `${situation.id}의 출처 메타데이터가 누락됐습니다.`
+  );
+}
+
+const safetyHit = retrieve("A53");
+assert.ok(safetyHit);
+const safetyPrompt = groundedSystemPrompt(safetyHit, {
+  username: "평가 사용자",
+  level: 1,
+  streak: 0,
+  todayEffectiveMin: 0,
+  todayHarmfulMin: 0,
+  last7StudyMin: 0,
+  last7HarmfulCount: 0,
+  last7HarmfulMin: 0,
+  totalEffectiveMin: 0,
+  totalStopMin: 0,
+  totalHarmfulMin: 0,
+  nearestDday: null,
+  schedules: [],
+});
+for (const requiredRule of [
+  "진단하거나 질환명을 추정하지 않는다",
+  "특정 약물, 복용량, 영양제, 치료법을 권하지 않는다",
+  "검색된 근거에 없는 효과, 수치, 인과관계를 새로 만들지 않는다",
+  "성적, 생산성, 집중력 향상을 보장하지 않는다",
+]) {
+  assert.ok(safetyPrompt.includes(requiredRule), `안전 규칙 누락: ${requiredRule}`);
+}
+
 console.log(
-  `RAG validation passed: ${EVIDENCE.length} evidence records, ${ragSituations().length} grounded situations.`
+  `RAG validation passed: ${EVIDENCE.length} evidence, ${ragSituations().length} grounded situations, ` +
+    `${classificationCases.length} classification, ${emergencyCases.length} emergency, ` +
+    `${retrievalCases.length} retrieval cases.`
 );

@@ -27,6 +27,11 @@ import {
 } from "../lib/backend";
 import type { OtterContext } from "../lib/llm";
 import {
+  ragMetadataFromApi,
+  type RagMetadata,
+  type RagSource,
+} from "../lib/rag/api-types";
+import {
   ACHIEVEMENTS,
   aiComment,
   Achievement,
@@ -122,6 +127,11 @@ type SessionOutcome = {
   goalReached: boolean;
 };
 
+type RagIntervention = {
+  line: string;
+  rag: RagMetadata;
+};
+
 export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
   const [tab, setTab] = useState<Tab>("home");
   const [state, setState] = useState<UserState | null>(null);
@@ -136,7 +146,10 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
   const [stopSec, setStopSec] = useState(0);
   const [harmfulActive, setHarmfulActive] = useState(false);
   const [contHarmful, setContHarmful] = useState(0);
+  const [harmfulEntryCount, setHarmfulEntryCount] = useState(0);
   const [alarm, setAlarm] = useState<string | null>(null);
+  const [intervention, setIntervention] = useState<RagIntervention | null>(null);
+  const interventionRequestRef = useRef(0);
 
   const [outcome, setOutcome] = useState<SessionOutcome | null>(null);
   const [oops, setOops] = useState(false);
@@ -175,12 +188,57 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
     return () => clearInterval(id);
   }, [phase, harmfulActive]);
 
-  // 유해앱 알람 티어
+  // 유해앱 이탈 시간 → 검수된 상황 기반 개입 (웹 데모에서는 10초/20초로 축약)
   useEffect(() => {
     if (!harmfulActive) return;
-    if (contHarmful === HARMFUL.mildAtSec) setAlarm(HARMFUL.mild);
-    else if (contHarmful === HARMFUL.strongAtSec) setAlarm(HARMFUL.strong);
+    if (contHarmful === HARMFUL.mildAtSec) {
+      void requestSituation(
+        "A20",
+        { 앱명: "방해 앱(웹 시뮬레이션)" },
+        HARMFUL.mild
+      );
+    } else if (contHarmful === HARMFUL.strongAtSec) {
+      void requestSituation(
+        "A21",
+        { 앱명: "방해 앱(웹 시뮬레이션)", 과목: "하던 공부" },
+        HARMFUL.strong
+      );
+    }
+    // requestSituation은 최신 state/context를 읽으며, 임계값에서만 호출한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contHarmful, harmfulActive]);
+
+  // 공부 진행 이벤트 → 화면 휴식, 자세 전환, 장시간 학습 안전 개입
+  useEffect(() => {
+    if (phase !== "running" || harmfulActive) return;
+    const beforeTarget = targetMin === 0 || studySec < targetMin * 60;
+    if (studySec === 120 * 60) {
+      void requestSituation("A59");
+    } else if (beforeTarget && studySec === 20 * 60) {
+      void requestSituation("A6");
+    } else if (beforeTarget && studySec === 35 * 60) {
+      void requestSituation("A5");
+    } else if (beforeTarget && studySec === 60 * 60) {
+      void requestSituation("A7");
+    } else if (
+      targetMin > 0 &&
+      studySec === Math.floor((targetMin * 60) / 2)
+    ) {
+      void requestSituation("A32", {
+        "남은 시간": Math.ceil((targetMin * 60 - studySec) / 60),
+      });
+    }
+    // 임계값에서 한 번만 호출한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studySec, phase, harmfulActive, targetMin]);
+
+  // 일시정지가 길어지면 애매한 중단 상태를 해소하도록 안내한다.
+  useEffect(() => {
+    if (phase !== "paused") return;
+    const id = setTimeout(() => void requestSituation("A10"), 5 * 60 * 1000);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   // 목표 시간 도달 → 자동 완료
   useEffect(() => {
@@ -215,13 +273,15 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
         }),
       });
       const data = await res.json();
+      const rag = ragMetadataFromApi(data, "chat");
       const reply: ChatRow = {
         role: "assistant",
         content: data.reply || "음… 다시 말해줄래?",
         at: Date.now(),
+        rag,
       };
       setChatMsgs((m) => [...m, reply]);
-      addChat("assistant", reply.content);
+      addChat("assistant", reply.content, rag);
     } catch {
       setChatMsgs((m) => [
         ...m,
@@ -252,27 +312,106 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
     }
   }
 
+  /** 앱 이벤트를 검수 상황으로 보내고, 가장 최근 요청만 화면에 반영한다. */
+  async function requestSituation(
+    situationId: string,
+    slots: Record<string, string | number> = {},
+    optimisticLine?: string
+  ) {
+    if (!state) return;
+    const requestId = ++interventionRequestRef.current;
+    if (optimisticLine) {
+      setIntervention({
+        line: optimisticLine,
+        rag: {
+          channel: "event",
+          situationId,
+          evidenceIds: [],
+          sources: [],
+        },
+      });
+    }
+    try {
+      const res = await fetch("/api/situation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          situationId,
+          context: buildContext(state, logs, schedules),
+          slots,
+        }),
+      });
+      if (!res.ok) throw new Error(`SITUATION_${res.status}`);
+      const data = await res.json();
+      if (requestId !== interventionRequestRef.current) return;
+      const line = typeof data.line === "string" ? data.line.trim() : "";
+      if (!line) return;
+      setIntervention({
+        line,
+        rag: ragMetadataFromApi(data, "event"),
+      });
+    } catch {
+      // 낙관적 검수 문구가 있으면 유지하고, 없으면 조용히 기존 흐름을 유지한다.
+    }
+  }
+
+  function closeIntervention() {
+    interventionRequestRef.current += 1;
+    setIntervention(null);
+  }
+
   /* ---------- session control ---------- */
   function startSelecting() {
     setPhase("selecting");
   }
   function beginSession(min: number) {
+    closeIntervention();
+    setAlarm(null);
     setTargetMin(min);
     setStudySec(0);
     setHarmfulSec(0);
     setStopSec(0);
     setContHarmful(0);
+    setHarmfulEntryCount(0);
     setHarmfulActive(false);
     setPhase("running");
+    const firstSchedule = schedules
+      .map((schedule) => ({ ...schedule, dday: calcDday(schedule.eventDate) }))
+      .filter((schedule) => schedule.dday >= 0)
+      .sort((a, b) => a.dday - b.dday)[0];
+    void requestSituation("A4", {
+      "목표 시간": min > 0 ? min : "자유",
+      "할 일": firstSchedule?.title ?? "지금 할 공부",
+    });
   }
   function toggleHarmful() {
     if (harmfulActive) {
       setHarmfulActive(false);
       setContHarmful(0);
+      closeIntervention();
       setAlarm(HARMFUL.praise);
     } else {
+      const nextEntryCount = harmfulEntryCount + 1;
+      setHarmfulEntryCount(nextEntryCount);
+      setAlarm(null);
       setHarmfulActive(true);
       setContHarmful(0);
+      if (nextEntryCount >= 3) {
+        void requestSituation(
+          "A44",
+          {
+            앱명: "방해 앱(웹 시뮬레이션)",
+            "진입 횟수": nextEntryCount,
+          },
+          HARMFUL.strong
+        );
+      } else {
+        void requestSituation(
+          "A19",
+          { 앱명: "방해 앱(웹 시뮬레이션)", 과목: "하던 공부" },
+          HARMFUL.mild
+        );
+      }
     }
   }
 
@@ -375,6 +514,16 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
       achievements: newlyUnlocked,
       goalReached,
     });
+
+    const reachedTimer = targetMin > 0 && total >= targetMin * 60;
+    if (reachedTimer) {
+      void requestSituation("A8");
+    } else if (targetMin > 0 && total < (targetMin * 60) / 2) {
+      void requestSituation("A34", {
+        "목표 시간": targetMin,
+        "실제 시간": Math.max(1, Math.round(total / 60)),
+      });
+    }
   }
 
   function closeOutcome() {
@@ -551,7 +700,7 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
         />
       )}
 
-      {alarm && (
+      {alarm && !intervention && (
         <div className="blockwarn" onClick={() => setAlarm(null)}>
           <span className="bw-emoji">🦦</span>
           <div>
@@ -559,6 +708,13 @@ export default function MainApp({ onSignOut }: { onSignOut: () => void }) {
             <div className="bw-d">탭하면 닫혀요</div>
           </div>
         </div>
+      )}
+
+      {intervention && (
+        <RagInterventionCard
+          intervention={intervention}
+          onClose={closeIntervention}
+        />
       )}
 
       {outcome && <CongratsOverlay o={outcome} onClose={closeOutcome} />}
@@ -591,6 +747,93 @@ function StatusBar() {
         <span>􀛧</span>
       </span>
     </div>
+  );
+}
+
+function RagLabel({ rag }: { rag: RagMetadata }) {
+  if (rag.emergency) {
+    return <span className="rag-label emergency">안전 고정 안내</span>;
+  }
+  if (rag.sources.length > 0) {
+    return (
+      <span className="rag-label grounded">
+        근거 기반 코칭{rag.situationId ? ` · ${rag.situationId}` : ""}
+      </span>
+    );
+  }
+  return (
+    <span className="rag-label general">
+      {rag.channel === "event" ? "상황 기반 개입" : "일상 대화"}
+      {rag.situationId ? ` · ${rag.situationId}` : ""}
+    </span>
+  );
+}
+
+function SourceDisclosure({
+  sources,
+  retrieval,
+}: {
+  sources: RagSource[];
+  retrieval?: RagMetadata["retrieval"];
+}) {
+  if (sources.length === 0) return null;
+  return (
+    <details className="rag-sources">
+      <summary>근거 출처 {sources.length}개 보기</summary>
+      <div className="rag-source-list">
+        {sources.map((source) => (
+          <div className="rag-source" key={source.id}>
+            <span className="rag-source-id">{source.id}</span>
+            <div>
+              {source.url ? (
+                <a href={source.url} target="_blank" rel="noreferrer">
+                  {source.title}
+                </a>
+              ) : (
+                <span>{source.title}</span>
+              )}
+              <small>
+                {source.publisher} · {source.year}
+              </small>
+            </div>
+          </div>
+        ))}
+      </div>
+      {retrieval && (
+        <div className="rag-retrieval">
+          검수 후보 {retrieval.candidateCount}개
+          {retrieval.mode === "curated+keyword" ? " 중 질문 관련도순" : "에서 선택"}
+        </div>
+      )}
+    </details>
+  );
+}
+
+function RagInterventionCard({
+  intervention,
+  onClose,
+}: {
+  intervention: RagIntervention;
+  onClose: () => void;
+}) {
+  return (
+    <aside className="rag-intervention" aria-live="polite">
+      <div className="rag-intervention-head">
+        <span className="bw-emoji">🦦</span>
+        <RagLabel rag={intervention.rag} />
+        <button onClick={onClose} aria-label="개입 닫기">
+          ×
+        </button>
+      </div>
+      <div className="rag-intervention-line">{intervention.line}</div>
+      <SourceDisclosure
+        sources={intervention.rag.sources}
+        retrieval={intervention.rag.retrieval}
+      />
+      {intervention.rag.fallback && (
+        <div className="rag-fallback">검수된 기본 문구로 안내했어요.</div>
+      )}
+    </aside>
   );
 }
 
@@ -707,7 +950,10 @@ function HomeView(p: {
 
       <div className="avatar-wrap">
         <OtterAvatar img={otter} equipped={p.equipped} onClick={p.onTapOtter}>
-          <div className="speech">{bubbleText}</div>
+          <div className="speech">
+            {p.tapLine && <span className="ambient-label">일상 응원</span>}
+            <span>{bubbleText}</span>
+          </div>
         </OtterAvatar>
       </div>
       <div className="tap-hint">수달이를 톡 건드려봐! 🫧</div>
@@ -1358,8 +1604,20 @@ function ChatView({
           </div>
         )}
         {msgs.map((m, i) => (
-          <div key={i} className={`chat-bubble ${m.role}`}>
-            {m.content}
+          <div key={`${m.at}-${i}`} className={`chat-message ${m.role}`}>
+            <div className={`chat-bubble ${m.role}`}>{m.content}</div>
+            {m.role === "assistant" && m.rag && (
+              <div className="chat-rag-meta">
+                <RagLabel rag={m.rag} />
+                <SourceDisclosure
+                  sources={m.rag.sources}
+                  retrieval={m.rag.retrieval}
+                />
+                {m.rag.fallback && (
+                  <div className="rag-fallback">검수된 기본 문구로 답했어요.</div>
+                )}
+              </div>
+            )}
           </div>
         ))}
         {busy && (

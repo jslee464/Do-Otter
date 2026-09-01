@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
       situationId: "A58",
       evidenceIds: ["R11", "R12"],
       sources: emergencyHit ? evidenceSources(emergencyHit) : [],
+      generation: "고정문구",
       emergency: true,
     });
   }
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
           evidenceIds: hit.evidence.map((evidence) => evidence.id),
           sources: evidenceSources(hit),
           retrieval: hit.retrieval,
+          generation: hit.situation.generation,
         });
       } catch {
         return NextResponse.json({
@@ -78,6 +80,7 @@ export async function POST(req: NextRequest) {
           evidenceIds: hit.evidence.map((evidence) => evidence.id),
           sources: evidenceSources(hit),
           retrieval: hit.retrieval,
+          generation: hit.situation.generation,
           fallback: true,
         });
       }

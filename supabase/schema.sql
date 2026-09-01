@@ -99,8 +99,10 @@ create table if not exists public.chat_messages (
   user_id     uuid references auth.users(id) on delete cascade,
   role        text not null,           -- 'user' | 'assistant'
   content     text not null,
+  rag_meta    jsonb,                    -- 상황 ID, 출처, 검색 모드(근거 답변만)
   created_at  timestamptz not null default now()
 );
+alter table public.chat_messages add column if not exists rag_meta jsonb;
 create index if not exists chat_user_idx on public.chat_messages(user_id, created_at);
 
 -- 6) blocked_apps / consents (온보딩)
