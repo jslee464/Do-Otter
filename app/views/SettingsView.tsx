@@ -18,7 +18,6 @@ export default function SettingsView(p: {
   state: UserState;
   lv: LV;
   onAd: () => void;
-  onOops: () => void;
   onCustomize: () => void;
   onImpact: () => void;
   onCheckout: (plan: "pro" | "chatpro") => void;
@@ -28,8 +27,10 @@ export default function SettingsView(p: {
 }) {
   const [block, setBlock] = useState(true);
   const [location, setLocation] = useState(true);
+  const [notificationTiming, setNotificationTiming] = useState("자동");
   const [editingApps, setEditingApps] = useState(false);
   const [showCustomizeNotice, setShowCustomizeNotice] = useState(false);
+  const [showTimingSheet, setShowTimingSheet] = useState(false);
 
   if (editingApps) {
     return <BlockedAppsSelection onClose={() => setEditingApps(false)} />;
@@ -40,7 +41,7 @@ export default function SettingsView(p: {
       <header><h1>설정</h1><div><button onClick={p.onAd}>🐚 {p.state.shells}</button><button>🔔</button></div></header>
       <div className="settings-list">
         <SettingRow icon="🚫" title="방해 앱 차단" value={block ? "사용 중" : "꺼짐"} onClick={() => setBlock(!block)} />
-        <SettingRow icon="⏰" title="유해 앱 알림 시점" value="자동" onClick={p.onOops} />
+        <SettingRow icon="⏰" title="유해 앱 알림 시점" value={notificationTiming} onClick={() => setShowTimingSheet(true)} />
         <SettingRow icon="▦" title="방해 앱 다시 선택" value="" onClick={() => setEditingApps(true)} />
         <SettingRow icon="💬" title="Otti 말투" value="응원형" />
         <SettingRow icon={<SettingsFeatureIcon kind="river" />} iconClass="setting-icon-blue" title="내가 선택한 강" value="홍제천" onClick={p.onImpact} />
@@ -67,6 +68,33 @@ export default function SettingsView(p: {
               <p>조금만 기다려 주세요.</p>
             </div>
             <button onClick={() => setShowCustomizeNotice(false)}>설정으로 돌아가기</button>
+          </section>
+        </div>
+      )}
+
+      {showTimingSheet && (
+        <div className="settings-customize-overlay" role="dialog" aria-modal="true" aria-labelledby="timing-sheet-title">
+          <section className="settings-timing-sheet">
+            <div>
+              <h2 id="timing-sheet-title">유해 앱 알림 시점</h2>
+              <p>집중 중 방해 앱을 연 뒤 언제 알려줄지 선택해요.</p>
+            </div>
+            <div className="timing-options">
+              {["자동", "10분", "20분", "30분"].map((option) => (
+                <button
+                  key={option}
+                  className={notificationTiming === option ? "on" : ""}
+                  onClick={() => {
+                    setNotificationTiming(option);
+                    setShowTimingSheet(false);
+                  }}
+                >
+                  <span>{option}</span>
+                  {notificationTiming === option && <i>✓</i>}
+                </button>
+              ))}
+            </div>
+            <button className="timing-cancel" onClick={() => setShowTimingSheet(false)}>설정으로 돌아가기</button>
           </section>
         </div>
       )}

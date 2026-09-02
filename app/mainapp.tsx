@@ -781,7 +781,6 @@ export default function MainApp({
             state={state}
             lv={lv}
             onAd={watchAd}
-            onOops={simulateOops}
             onCustomize={() => setTab("customize")}
             onImpact={() => setTab("impact")}
             onCheckout={doCheckout}
