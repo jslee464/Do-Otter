@@ -21,6 +21,7 @@ export default function SettingsView(p: {
   onOops: () => void;
   onCustomize: () => void;
   onImpact: () => void;
+  onCheckout: (plan: "pro" | "chatpro") => void;
   onSignOut: () => void;
   dark: boolean;
   onDarkChange: (value: boolean) => void;
@@ -44,6 +45,12 @@ export default function SettingsView(p: {
         <SettingRow icon="💬" title="Otti 말투" value="응원형" />
         <SettingRow icon={<SettingsFeatureIcon kind="river" />} iconClass="setting-icon-blue" title="내가 선택한 강" value="홍제천" onClick={p.onImpact} />
         <SettingRow icon={<SettingsFeatureIcon kind="location" />} iconClass="setting-icon-blue" title="위치 기반 추천" value={location ? "사용 중" : "꺼짐"} onClick={() => setLocation(!location)} />
+        <SettingRow icon="👑" title="Pro 수달" value={p.state.isPro ? "이용 중" : "구독하기"} onClick={() => {
+          if (!p.state.isPro) p.onCheckout("pro");
+        }} />
+        <SettingRow icon="💬" title="수달 Chat Pro" value={p.state.isChatPro ? "이용 중" : "구독하기"} onClick={() => {
+          if (!p.state.isChatPro) p.onCheckout("chatpro");
+        }} />
       </div>
 
       <div className="settings-meta">

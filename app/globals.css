@@ -3318,6 +3318,69 @@ img {
 .chat-peek { display: block; width: 94px; height: 69px; object-fit: contain; margin: 2px auto -17px; }
 .chat-timer-start { position: relative; width: 100%; height: 48px; border-radius: 9px; background: var(--hf-brown); color: white; font-size: 16px; font-weight: 800; }
 
+/* Chat Pro paywall */
+.overlay.paywall {
+  justify-content: center;
+  background: linear-gradient(180deg, #f5effc, #e3d4f3);
+  color: #4a3866;
+}
+.paywall-x {
+  position: absolute;
+  top: 20px;
+  right: 22px;
+  width: 34px;
+  height: 34px;
+  color: #6b5a86;
+  font-size: 20px;
+}
+.paywall-badge {
+  margin-bottom: 8px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, #bd94e0, #9b6fd0);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+.overlay.paywall h2 {
+  margin: 8px 0 4px;
+  color: #4a3866;
+}
+.overlay.paywall .msg {
+  color: #6b5a86;
+}
+.paywall-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.paywall-benefits li {
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #4a3866;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+.paywall-benefits li::before {
+  content: "✅ ";
+}
+.overlay.paywall .continue {
+  margin-top: 22px;
+  background: linear-gradient(120deg, #9b6fd0, #7d4fc0);
+  box-shadow: 0 11px 20px -17px rgba(90, 50, 130, 0.72);
+}
+.paywall-later {
+  margin-top: 12px;
+  color: #6b5a86;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 @media (max-width: 480px) {
   .phone:has(.screen) { width: 100vw; height: 100dvh; padding: 0; border-radius: 0; background: var(--hf-bg); box-shadow: none; }
   .phone:has(.screen) > .screen { border-radius: 0; }

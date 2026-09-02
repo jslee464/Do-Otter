@@ -17,6 +17,7 @@ import {
   loadState,
   saveState,
   signOut,
+  startCheckout,
   type ChatRow,
   type ScheduleEvent,
   type SessionLog,
@@ -51,6 +52,7 @@ import {
 } from "./shared";
 import { BottomNav, StatusBar } from "./components/ui";
 import {
+  ChatProPaywall,
   CongratsOverlay,
   InterventionOverlay,
   OopsOverlay,
@@ -120,6 +122,7 @@ export default function MainApp({
 
   // 수달이 LLM (챗봇 + 홈 터치 멘트)
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatLocked, setChatLocked] = useState(false); // Chat Pro 미구독 → 페이월
   const [chatMsgs, setChatMsgs] = useState<ChatRow[]>([]);
   const [chatBusy, setChatBusy] = useState(false);
   const [tapLine, setTapLine] = useState<string | null>(null);
@@ -187,6 +190,21 @@ export default function MainApp({
     }
     if (screen === 22) setIntervention({ mode: "sheet" });
   }, []);
+
+  async function doCheckout(plan: "pro" | "chatpro") {
+    setAlarm("결제창을 여는 중…");
+    const r = await startCheckout(plan);
+    if (r.ok) {
+      await refresh(); // 이용권 반영
+      setAlarm(plan === "chatpro" ? "Chat Pro 결제 완료! 수달이랑 대화해봐요 💬" : "Pro 수달 결제 완료! 👑");
+    } else if (r.error === "not_configured")
+      setAlarm("결제가 아직 설정되지 않았어요 (관리자 PortOne 키 등록 필요)");
+    else if (r.error === "demo")
+      setAlarm("데모 모드에선 결제를 쓸 수 없어요. 로그인 후 이용해주세요.");
+    else if (r.error === "cancelled" || r.error === "no_session")
+      setAlarm(r.error === "no_session" ? "로그인 후 이용해주세요." : "결제를 취소했어요.");
+    else setAlarm("결제에 실패했어요. 잠시 후 다시 시도해주세요.");
+  }
 
   // 1초 틱
   useEffect(() => {
@@ -260,6 +278,11 @@ export default function MainApp({
 
   /* ---------------- 수달이 LLM ---------------- */
   async function openChat() {
+    // 챗봇은 Chat Pro 전용 — 미구독이면 페이월
+    if (!state?.isChatPro) {
+      setChatLocked(true);
+      return;
+    }
     setChatOpen(true);
     setChatMsgs(await getChat());
   }
@@ -695,6 +718,7 @@ export default function MainApp({
             onOops={simulateOops}
             onCustomize={() => setTab("customize")}
             onImpact={() => setTab("impact")}
+            onCheckout={doCheckout}
             dark={darkMode}
             onDarkChange={(value) => {
               setDarkMode(value);
@@ -757,6 +781,16 @@ export default function MainApp({
               setShowProAd(false);
               setTab("settings");
             }}
+          />
+        )}
+
+        {chatLocked && (
+          <ChatProPaywall
+            onSubscribe={() => {
+              setChatLocked(false);
+              doCheckout("chatpro");
+            }}
+            onClose={() => setChatLocked(false)}
           />
         )}
 

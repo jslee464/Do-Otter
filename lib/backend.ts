@@ -37,6 +37,8 @@ export type UserState = {
   unlocked: string[];
   ownedItems: string[]; // 수달 커스텀: 보유 아이템
   equippedItems: string[]; // 수달 커스텀: 착용 아이템
+  isPro: boolean; // Pro 수달 구독 중
+  isChatPro: boolean; // 수달 Chat Pro 구독 중
 };
 
 export type ScheduleEvent = {
@@ -84,6 +86,8 @@ export function defaultState(username: string): UserState {
     unlocked: [],
     ownedItems: [],
     equippedItems: [],
+    isPro: false,
+    isChatPro: false,
   };
 }
 
@@ -224,7 +228,16 @@ export async function loadState(): Promise<UserState | null> {
     .select("ach_id")
     .eq("user_id", id);
   const unlocked = (achs ?? []).map((r: any) => r.ach_id);
-  if (!data) return { ...defaultState(who), unlocked };
+  // 구독 상태 (Stripe webhook 이 갱신한 profiles 컬럼)
+  const { data: prof } = await supabase!
+    .from("profiles")
+    .select("pro_until, chatpro_until")
+    .eq("id", id)
+    .single();
+  const now = Date.now();
+  const isPro = !!prof?.pro_until && new Date(prof.pro_until).getTime() > now;
+  const isChatPro = !!prof?.chatpro_until && new Date(prof.chatpro_until).getTime() > now;
+  if (!data) return { ...defaultState(who), unlocked, isPro, isChatPro };
   return {
     username: who,
     totalExp: data.total_exp ?? 0,
@@ -249,6 +262,8 @@ export async function loadState(): Promise<UserState | null> {
     unlocked,
     ownedItems: data.owned_items ?? [],
     equippedItems: data.equipped_items ?? [],
+    isPro,
+    isChatPro,
   };
 }
 
@@ -477,6 +492,63 @@ export async function addChat(
     // rag_meta 마이그레이션 전 DB에서도 대화 본문은 보존한다.
     await supabase!.from("chat_messages").insert({ user_id: id, role, content });
   }
+}
+
+/* =====================================================================
+ *  PORTONE(아임포트) 결제 — 브라우저 SDK 결제창 + 서버 검증(/api/portone/verify)
+ *  프로토타입: 30일 이용권 단건결제 (정기결제 빌링키는 추후 고도화)
+ * ===================================================================== */
+async function accessToken(): Promise<string | null> {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
+const PLAN_INFO = {
+  chatpro: { amount: 2900, orderName: "수달 Chat Pro 30일 이용권" },
+  pro: { amount: 4900, orderName: "Pro 수달 30일 이용권" },
+} as const;
+
+export async function startCheckout(
+  plan: "pro" | "chatpro"
+): Promise<{ ok: boolean; error?: string }> {
+  if (backendMode === "demo") return { ok: false, error: "demo" };
+  const t = await accessToken();
+  if (!t) return { ok: false, error: "no_session" };
+
+  const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
+  const channelKey = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY;
+  if (!storeId || !channelKey) return { ok: false, error: "not_configured" };
+
+  const info = PLAN_INFO[plan];
+  const paymentId = `pay-${plan}-${Date.now()}-${Math.floor(Math.random() * 1e5)}`;
+
+  let resp: any;
+  try {
+    const PortOne = (await import("@portone/browser-sdk/v2")).default;
+    resp = await PortOne.requestPayment({
+      storeId,
+      channelKey,
+      paymentId,
+      orderName: info.orderName,
+      totalAmount: info.amount,
+      currency: "CURRENCY_KRW",
+      payMethod: "CARD",
+    } as any);
+  } catch {
+    return { ok: false, error: "sdk_error" };
+  }
+  // 결제창에서 취소/실패 시 code 가 채워짐
+  if (resp?.code != null) return { ok: false, error: resp.message || "cancelled" };
+
+  // 서버 검증 + 이용권 부여
+  const v = await fetch("/api/portone/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+    body: JSON.stringify({ paymentId, plan }),
+  });
+  const d = await v.json();
+  return d.ok ? { ok: true } : { ok: false, error: d.error || "verify_failed" };
 }
 
 /* =====================================================================
