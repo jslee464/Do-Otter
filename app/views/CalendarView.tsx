@@ -10,6 +10,9 @@ export default function CalendarView(p: {
   schedules: ScheduleEvent[];
   onAdd: (t: string, d: string) => void;
   onDelete: (id: string) => void;
+  gcal: { connected: boolean; configured: boolean; busy: boolean };
+  onConnect: () => void;
+  onSync: () => void;
 }) {
   const now = new Date();
   const [cursor, setCursor] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
@@ -67,6 +70,28 @@ export default function CalendarView(p: {
           return <button key={i} className={`${offset ? "muted" : ""} ${on ? "on" : ""}`} onClick={() => pick(day, offset)}><span>{day}</span>{has && <i />} </button>;
         })}
       </div>
+      <section className="gcal-panel">
+        <span className="gcal-panel-icon">📅</span>
+        <div>
+          <b>Google Calendar</b>
+          <small>
+            {!p.gcal.configured
+              ? "관리자 키 등록 후 연동할 수 있어요"
+              : p.gcal.connected
+              ? "연동됨 · 구글 일정을 가져올 수 있어요"
+              : "연동하면 구글 일정을 자동으로 불러와요"}
+          </small>
+        </div>
+        {p.gcal.connected ? (
+          <button onClick={p.onSync} disabled={p.gcal.busy}>
+            {p.gcal.busy ? "동기화 중" : "동기화"}
+          </button>
+        ) : (
+          <button onClick={p.onConnect} disabled={p.gcal.busy || !p.gcal.configured}>
+            {p.gcal.busy ? "연결 중" : "연동"}
+          </button>
+        )}
+      </section>
       <section className="day-schedule">
         <h2>{selected.getMonth() + 1}월 {selected.getDate()}일 일정</h2>
         {selectedSchedules.length === 0 ? (
@@ -77,7 +102,10 @@ export default function CalendarView(p: {
             <button key={s.id} aria-label={`${detail.title} 일정 삭제`} onClick={() => p.onDelete(s.id)}>
               <span className="schedule-pencil"><PencilIcon /></span>
               <b>{detail.title}</b>
-              <em>{detail.time ? `${detail.time} · 삭제 ×` : "삭제 ×"}</em>
+              <em>
+                {s.source === "googleCalendar" ? "Google · " : ""}
+                {detail.time ? `${detail.time} · 삭제 ×` : "삭제 ×"}
+              </em>
             </button>
           );
         })}

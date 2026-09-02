@@ -3381,6 +3381,52 @@ img {
   font-weight: 700;
 }
 
+.gcal-panel {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 15px;
+  padding: 12px 13px;
+  border: 1px solid var(--hf-line);
+  border-radius: 11px;
+  background: white;
+}
+.gcal-panel-icon {
+  flex: 0 0 auto;
+  font-size: 20px;
+}
+.gcal-panel > div {
+  min-width: 0;
+  flex: 1;
+}
+.gcal-panel b {
+  display: block;
+  color: var(--hf-ink);
+  font-size: 13px;
+}
+.gcal-panel small {
+  display: block;
+  margin-top: 3px;
+  color: var(--hf-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.gcal-panel button {
+  flex: 0 0 auto;
+  min-width: 66px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--hf-blue);
+  color: #fff;
+  font-weight: 800;
+  font-size: 12px;
+}
+.gcal-panel button:disabled {
+  background: #c9c0b5;
+}
+
 @media (max-width: 480px) {
   .phone:has(.screen) { width: 100vw; height: 100dvh; padding: 0; border-radius: 0; background: var(--hf-bg); box-shadow: none; }
   .phone:has(.screen) > .screen { border-radius: 0; }
