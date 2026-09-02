@@ -23,11 +23,24 @@ export async function POST(req: Request) {
   const access = await refreshAccessToken(row.refresh_token);
   if (!access) return NextResponse.json({ error: "refresh_failed" }, { status: 400 });
 
-  const events = await listUpcomingEvents(access);
+  let events;
+  try {
+    events = await listUpcomingEvents(access);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "google_calendar_failed",
+        detail: error instanceof Error ? error.message : "Google Calendar API failed",
+      },
+      { status: 400 }
+    );
+  }
   const rows = events
     .filter((e) => e.start && (e.start.date || e.start.dateTime))
     .map((e) => ({
-      id: "gcal_" + e.id,
+      id:
+        "gcal_" +
+        Buffer.from(`${e.calendarId}:${e.id}`).toString("base64url").slice(0, 120),
       user_id: userId,
       title: e.summary || "(제목 없음)",
       event_date: (e.start!.date || e.start!.dateTime || "").slice(0, 10),

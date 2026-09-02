@@ -55,11 +55,58 @@ export async function refreshAccessToken(refreshToken: string): Promise<string |
   return d.access_token ?? null;
 }
 
-export type GEvent = { id: string; summary?: string; start?: { date?: string; dateTime?: string } };
+type GCalendar = {
+  id: string;
+  summary?: string;
+  primary?: boolean;
+  selected?: boolean;
+  hidden?: boolean;
+  accessRole?: string;
+};
 
-export async function listUpcomingEvents(accessToken: string): Promise<GEvent[]> {
-  const timeMin = new Date().toISOString();
-  const timeMax = new Date(Date.now() + 90 * 86400000).toISOString();
+export type GEvent = {
+  id: string;
+  summary?: string;
+  status?: string;
+  start?: { date?: string; dateTime?: string };
+  calendarId: string;
+  calendarSummary?: string;
+};
+
+async function googleJson<T>(url: string, accessToken: string): Promise<T> {
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      typeof data?.error?.message === "string"
+        ? data.error.message
+        : `Google API error ${res.status}`;
+    throw new Error(message);
+  }
+  return data as T;
+}
+
+async function listCalendars(accessToken: string): Promise<GCalendar[]> {
+  const p = new URLSearchParams({
+    showHidden: "false",
+    minAccessRole: "reader",
+  });
+  const data = await googleJson<{ items?: GCalendar[] }>(
+    `https://www.googleapis.com/calendar/v3/users/me/calendarList?${p.toString()}`,
+    accessToken
+  );
+  return (data.items ?? []).filter((calendar) => {
+    if (!calendar.id || calendar.hidden) return false;
+    return calendar.accessRole !== "freeBusyReader";
+  });
+}
+
+async function listCalendarEvents(
+  accessToken: string,
+  calendar: GCalendar,
+  timeMin: string,
+  timeMax: string
+): Promise<GEvent[]> {
   const p = new URLSearchParams({
     timeMin,
     timeMax,
@@ -67,13 +114,37 @@ export async function listUpcomingEvents(accessToken: string): Promise<GEvent[]>
     orderBy: "startTime",
     maxResults: "50",
   });
-  const res = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/primary/events?${p.toString()}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+  const data = await googleJson<{ items?: Omit<GEvent, "calendarId" | "calendarSummary">[] }>(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendar.id)}/events?${p.toString()}`,
+    accessToken
   );
-  if (!res.ok) return [];
-  const d = await res.json();
-  return (d.items ?? []) as GEvent[];
+  return (data.items ?? [])
+    .filter((event) => event.id && event.status !== "cancelled")
+    .map((event) => ({
+      ...event,
+      calendarId: calendar.id,
+      calendarSummary: calendar.summary,
+    }));
+}
+
+export async function listUpcomingEvents(accessToken: string): Promise<GEvent[]> {
+  const timeMin = new Date().toISOString();
+  const timeMax = new Date(Date.now() + 90 * 86400000).toISOString();
+  const calendars = await listCalendars(accessToken);
+  const targets =
+    calendars.length > 0
+      ? calendars
+      : [{ id: "primary", summary: "Primary", primary: true }];
+  const eventGroups = await Promise.all(
+    targets.map((calendar) =>
+      listCalendarEvents(accessToken, calendar, timeMin, timeMax).catch(() => [])
+    )
+  );
+  return eventGroups.flat().sort((a, b) => {
+    const aStart = a.start?.dateTime || a.start?.date || "";
+    const bStart = b.start?.dateTime || b.start?.date || "";
+    return aStart.localeCompare(bStart);
+  });
 }
 
 /* ---- OAuth state 서명 (userId 위변조 방지) ---- */
