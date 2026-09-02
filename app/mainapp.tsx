@@ -230,6 +230,11 @@ export default function MainApp({
     const r = await startCheckout(plan);
     if (r.ok) {
       await refresh(); // 이용권 반영
+      if (plan === "chatpro") {
+        setChatLocked(false);
+        setChatOpen(true);
+        setChatMsgs(await getChat());
+      }
       setAlarm(plan === "chatpro" ? "Chat Pro 결제 완료! 수달이랑 대화해봐요 💬" : "Pro 수달 결제 완료! 👑");
     } else if (r.error === "not_configured")
       setAlarm("결제가 아직 설정되지 않았어요 (관리자 PortOne 키 등록 필요)");

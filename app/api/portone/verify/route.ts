@@ -37,8 +37,27 @@ export async function POST(req: Request) {
 
   const until = new Date(Date.now() + PLANS[plan].days * 86400000).toISOString();
   const col = plan === "chatpro" ? "chatpro_until" : "pro_until";
-  const { error } = await admin.from("profiles").update({ [col]: until }).eq("id", userId);
+  const { data: profile, error } = await admin
+    .from("profiles")
+    .update({ [col]: until })
+    .eq("id", userId)
+    .select("id")
+    .maybeSingle();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+
+  if (!profile) {
+    const { data: userData } = await admin.auth.admin.getUserById(userId);
+    const username =
+      (userData.user?.user_metadata?.username as string | undefined) ||
+      userData.user?.email?.split("@")[0] ||
+      userId.slice(0, 8);
+    const { error: upsertError } = await admin
+      .from("profiles")
+      .upsert({ id: userId, username, [col]: until }, { onConflict: "id" });
+    if (upsertError) {
+      return NextResponse.json({ ok: false, error: upsertError.message }, { status: 500 });
+    }
+  }
 
   return NextResponse.json({ ok: true, until });
 }
