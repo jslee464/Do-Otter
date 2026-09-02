@@ -1,6 +1,7 @@
 "use client";
 
 import { isSupabaseConfigured, supabase, usernameToEmail } from "./supabase";
+import type { RagMetadata } from "./rag/api-types";
 
 export type Result = { ok: boolean; error?: string };
 export type Consent = {
@@ -416,7 +417,12 @@ function defaultSchedules(): ScheduleEvent[] {
 /* =====================================================================
  *  CHAT (수달이 챗봇 대화 기록)
  * ===================================================================== */
-export type ChatRow = { role: "user" | "assistant"; content: string; at: number };
+export type ChatRow = {
+  role: "user" | "assistant";
+  content: string;
+  at: number;
+  rag?: RagMetadata;
+};
 const CHAT_PFX = "dootter_chat_";
 
 export async function getChat(): Promise<ChatRow[]> {
@@ -427,31 +433,50 @@ export async function getChat(): Promise<ChatRow[]> {
   }
   const id = await uid();
   if (!id) return [];
-  const { data } = await supabase!
+  const withMeta = await supabase!
     .from("chat_messages")
-    .select("role, content, created_at")
+    .select("role, content, created_at, rag_meta")
     .eq("user_id", id)
     .order("created_at", { ascending: true })
     .limit(200);
+  // 이전 DB 스키마에도 앱이 멈추지 않도록 메타데이터 컬럼이 없으면 재조회한다.
+  const { data } = withMeta.error
+    ? await supabase!
+        .from("chat_messages")
+        .select("role, content, created_at")
+        .eq("user_id", id)
+        .order("created_at", { ascending: true })
+        .limit(200)
+    : withMeta;
   return (data ?? []).map((r: any) => ({
     role: r.role,
     content: r.content,
     at: new Date(r.created_at).getTime(),
+    ...(r.rag_meta ? { rag: r.rag_meta as RagMetadata } : {}),
   }));
 }
 
-export async function addChat(role: "user" | "assistant", content: string) {
+export async function addChat(
+  role: "user" | "assistant",
+  content: string,
+  rag?: RagMetadata
+) {
   if (backendMode === "demo") {
     const who = await currentUsername();
     if (!who) return;
     const arr = ls<ChatRow[]>(CHAT_PFX + who, []);
-    arr.push({ role, content, at: Date.now() });
+    arr.push({ role, content, at: Date.now(), ...(rag ? { rag } : {}) });
     setLs(CHAT_PFX + who, arr.slice(-200));
     return;
   }
   const id = await uid();
   if (!id) return;
-  await supabase!.from("chat_messages").insert({ user_id: id, role, content });
+  const payload = { user_id: id, role, content, ...(rag ? { rag_meta: rag } : {}) };
+  const result = await supabase!.from("chat_messages").insert(payload);
+  if (result.error && rag) {
+    // rag_meta 마이그레이션 전 DB에서도 대화 본문은 보존한다.
+    await supabase!.from("chat_messages").insert({ user_id: id, role, content });
+  }
 }
 
 /* =====================================================================

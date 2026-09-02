@@ -18,12 +18,21 @@ export async function POST(req: NextRequest) {
         { role: "system", content: system },
         { role: "user", content: user },
       ],
-      { maxTokens: 60, temperature: 1.05 }
+      { maxTokens: 3000, temperature: 0.9 }
     );
-    return NextResponse.json({ line: line.replace(/^["'“”]|["'“”]$/g, "") || "화이팅! 🦦" });
+    return NextResponse.json({
+      line: line.replace(/^["'“”]|["'“”]$/g, "") || "화이팅! 🦦",
+      channel: "ambient",
+      grounded: false,
+    });
   } catch (e: any) {
     // 키 없음/오류 시 규칙 기반 폴백
-    return NextResponse.json({ line: fallback(ctx) });
+    return NextResponse.json({
+      line: fallback(ctx),
+      channel: "ambient",
+      grounded: false,
+      fallback: true,
+    });
   }
 }
 

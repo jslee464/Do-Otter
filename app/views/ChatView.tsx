@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { IMG } from "../shared";
 import type { ChatRow } from "../../lib/backend";
+import type { RagMetadata, RagSource } from "../../lib/rag/api-types";
 
 export default function ChatView({
   username,
@@ -62,8 +63,20 @@ export default function ChatView({
           </div>
         )}
         {msgs.map((m, i) => (
-          <div key={i} className={`chat-bubble ${m.role}`}>
-            {m.content}
+          <div key={`${m.at}-${i}`} className={`chat-message ${m.role}`}>
+            <div className={`chat-bubble ${m.role}`}>{m.content}</div>
+            {m.role === "assistant" && m.rag && (
+              <div className="chat-rag-meta">
+                <RagLabel rag={m.rag} />
+                <SourceDisclosure
+                  sources={m.rag.sources}
+                  retrieval={m.rag.retrieval}
+                />
+                {m.rag.fallback && (
+                  <div className="rag-fallback">검수된 기본 문구로 답했어요.</div>
+                )}
+              </div>
+            )}
           </div>
         ))}
         {busy && (
@@ -95,5 +108,63 @@ export default function ChatView({
         </button>
       </div>
     </div>
+  );
+}
+
+function RagLabel({ rag }: { rag: RagMetadata }) {
+  if (rag.emergency) {
+    return <span className="rag-label emergency">안전 고정 안내</span>;
+  }
+  if (rag.sources.length > 0) {
+    return (
+      <span className="rag-label grounded">
+        근거 기반 코칭{rag.situationId ? ` · ${rag.situationId}` : ""}
+      </span>
+    );
+  }
+  return (
+    <span className="rag-label general">
+      {rag.channel === "event" ? "상황 기반 개입" : "일상 대화"}
+      {rag.situationId ? ` · ${rag.situationId}` : ""}
+    </span>
+  );
+}
+
+function SourceDisclosure({
+  sources,
+  retrieval,
+}: {
+  sources: RagSource[];
+  retrieval?: RagMetadata["retrieval"];
+}) {
+  if (sources.length === 0) return null;
+  return (
+    <details className="rag-sources">
+      <summary>근거 출처 {sources.length}개 보기</summary>
+      <div className="rag-source-list">
+        {sources.map((source) => (
+          <div className="rag-source" key={source.id}>
+            <span className="rag-source-id">{source.id}</span>
+            <div>
+              {source.url ? (
+                <a href={source.url} target="_blank" rel="noreferrer">
+                  {source.title}
+                </a>
+              ) : (
+                <span>{source.title}</span>
+              )}
+              <small>
+                {source.publisher} · {source.year}
+              </small>
+            </div>
+          </div>
+        ))}
+      </div>
+      {retrieval && (
+        <div className="rag-retrieval">
+          {retrieval.mode} · 후보 {retrieval.candidateCount}개
+        </div>
+      )}
+    </details>
   );
 }

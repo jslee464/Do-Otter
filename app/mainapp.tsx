@@ -23,11 +23,16 @@ import {
   type UserState,
 } from "../lib/backend";
 import {
+  ragMetadataFromApi,
+  type RagMetadata,
+} from "../lib/rag/api-types";
+import {
   AchCtx,
   calcDday,
   calcSession,
   checkAchievements,
   getUrgencyTier,
+  HARMFUL,
   itemById,
   levelState,
   levelUpShells,
@@ -85,6 +90,8 @@ export default function MainApp({
   const [harmfulSec, setHarmfulSec] = useState(0);
   const [stopSec, setStopSec] = useState(0);
   const [harmfulActive, setHarmfulActive] = useState(false);
+  const [contHarmful, setContHarmful] = useState(0);
+  const [harmfulEntryCount, setHarmfulEntryCount] = useState(0);
   const [alarm, setAlarm] = useState<string | null>(null);
 
   const [outcome, setOutcome] = useState<SessionOutcome | null>(() =>
@@ -103,7 +110,12 @@ export default function MainApp({
       : null,
   );
   const [oops, setOops] = useState(false);
-  const [intervention, setIntervention] = useState<InterventionMode | null>(null);
+  const [intervention, setIntervention] = useState<{
+    mode: InterventionMode;
+    line?: string;
+    rag?: RagMetadata;
+  } | null>(null);
+  const interventionRequestRef = useRef(0);
   const finishRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 수달이 LLM (챗봇 + 홈 터치 멘트)
@@ -173,7 +185,7 @@ export default function MainApp({
         goalReached: false,
       });
     }
-    if (screen === 22) setIntervention("sheet");
+    if (screen === 22) setIntervention({ mode: "sheet" });
   }, []);
 
   // 1초 틱
@@ -187,10 +199,54 @@ export default function MainApp({
       setStudySec((s) => s + 1);
       if (harmfulActive) {
         setHarmfulSec((h) => h + 1);
+        setContHarmful((c) => c + 1);
       }
     }, 1000);
     return () => clearInterval(id);
   }, [phase, harmfulActive]);
+
+  // 유해앱 이탈 시간 → 검수된 상황 기반 개입
+  useEffect(() => {
+    if (!harmfulActive) return;
+    if (contHarmful === HARMFUL.mildAtSec) {
+      void requestSituation("A20", { 앱명: "방해 앱(웹 시뮬레이션)" }, HARMFUL.mild);
+    } else if (contHarmful === HARMFUL.strongAtSec) {
+      void requestSituation(
+        "A21",
+        { 앱명: "방해 앱(웹 시뮬레이션)", 과목: "하던 공부" },
+        HARMFUL.strong
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contHarmful, harmfulActive]);
+
+  // 공부 진행 이벤트 → 휴식/자세/장시간 학습 개입
+  useEffect(() => {
+    if (phase !== "running" || harmfulActive) return;
+    const beforeTarget = targetMin === 0 || studySec < targetMin * 60;
+    if (studySec === 120 * 60) {
+      void requestSituation("A59");
+    } else if (beforeTarget && studySec === 20 * 60) {
+      void requestSituation("A6");
+    } else if (beforeTarget && studySec === 35 * 60) {
+      void requestSituation("A5");
+    } else if (beforeTarget && studySec === 60 * 60) {
+      void requestSituation("A7");
+    } else if (targetMin > 0 && studySec === Math.floor((targetMin * 60) / 2)) {
+      void requestSituation("A32", {
+        "남은 시간": Math.ceil((targetMin * 60 - studySec) / 60),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studySec, phase, harmfulActive, targetMin]);
+
+  // 일시정지가 길어지면 애매한 중단 상태를 해소하도록 안내한다.
+  useEffect(() => {
+    if (phase !== "paused") return;
+    const id = setTimeout(() => void requestSituation("A10"), 5 * 60 * 1000);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   // 목표 시간 도달 → 자동 완료
   useEffect(() => {
@@ -229,9 +285,10 @@ export default function MainApp({
         role: "assistant",
         content: data.reply || "음… 다시 말해줄래?",
         at: Date.now(),
+        rag: ragMetadataFromApi(data, "chat"),
       };
       setChatMsgs((m) => [...m, reply]);
-      addChat("assistant", reply.content);
+      addChat("assistant", reply.content, reply.rag);
     } catch {
       setChatMsgs((m) => [
         ...m,
@@ -262,25 +319,107 @@ export default function MainApp({
     }
   }
 
+  async function requestSituation(
+    situationId: string,
+    slots: Record<string, string | number> = {},
+    optimisticLine?: string
+  ) {
+    if (!state) return;
+    const requestId = ++interventionRequestRef.current;
+    if (optimisticLine) {
+      setIntervention({
+        mode: "sheet",
+        line: optimisticLine,
+        rag: {
+          channel: "event",
+          situationId,
+          evidenceIds: [],
+          sources: [],
+        },
+      });
+    }
+    try {
+      const res = await fetch("/api/situation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          situationId,
+          context: buildContext(state, logs, schedules),
+          slots,
+        }),
+      });
+      if (!res.ok) throw new Error(`SITUATION_${res.status}`);
+      const data = await res.json();
+      if (requestId !== interventionRequestRef.current) return;
+      const line = typeof data.line === "string" ? data.line.trim() : "";
+      if (!line) return;
+      setIntervention({
+        mode: "sheet",
+        line,
+        rag: ragMetadataFromApi(data, "event"),
+      });
+    } catch {
+      // Optimistic fallback text stays visible when supplied.
+    }
+  }
+
+  function closeIntervention() {
+    interventionRequestRef.current += 1;
+    setIntervention(null);
+  }
+
   /* ---------------- 세션 컨트롤 ---------------- */
   function startSelecting() {
     setPhase("selecting");
   }
   function beginSession(min: number) {
+    closeIntervention();
+    setAlarm(null);
     setTargetMin(min);
     setStudySec(0);
     setHarmfulSec(0);
     setStopSec(0);
+    setContHarmful(0);
+    setHarmfulEntryCount(0);
     setHarmfulActive(false);
     setPhase("running");
+    const firstSchedule = schedules
+      .map((schedule) => ({ ...schedule, dday: calcDday(schedule.eventDate) }))
+      .filter((schedule) => schedule.dday >= 0)
+      .sort((a, b) => a.dday - b.dday)[0];
+    void requestSituation("A4", {
+      "목표 시간": min > 0 ? min : "자유",
+      "할 일": firstSchedule?.title ?? (goalName || "지금 할 공부"),
+    });
   }
   function toggleHarmful() {
     if (harmfulActive) {
       setHarmfulActive(false);
-      setIntervention(null);
+      setContHarmful(0);
+      closeIntervention();
+      setAlarm(HARMFUL.praise);
     } else {
+      const nextEntryCount = harmfulEntryCount + 1;
+      setHarmfulEntryCount(nextEntryCount);
+      setAlarm(null);
       setHarmfulActive(true);
-      setIntervention("sheet");
+      setContHarmful(0);
+      if (nextEntryCount >= 3) {
+        void requestSituation(
+          "A44",
+          {
+            앱명: "방해 앱(웹 시뮬레이션)",
+            "진입 횟수": nextEntryCount,
+          },
+          HARMFUL.strong
+        );
+      } else {
+        void requestSituation(
+          "A19",
+          { 앱명: "방해 앱(웹 시뮬레이션)", 과목: goalName || "하던 공부" },
+          HARMFUL.mild
+        );
+      }
     }
   }
 
@@ -374,6 +513,16 @@ export default function MainApp({
       achievements: newlyUnlocked,
       goalReached,
     });
+
+    const reachedTimer = targetMin > 0 && total >= targetMin * 60;
+    if (reachedTimer) {
+      void requestSituation("A8");
+    } else if (targetMin > 0 && total < (targetMin * 60) / 2) {
+      void requestSituation("A34", {
+        "목표 시간": targetMin,
+        "실제 시간": Math.max(1, Math.round(total / 60)),
+      });
+    }
   }
 
   function closeOutcome() {
@@ -381,6 +530,7 @@ export default function MainApp({
     setStudySec(0);
     setHarmfulSec(0);
     setStopSec(0);
+    setContHarmful(0);
   }
 
   function stopDown() {
@@ -571,12 +721,15 @@ export default function MainApp({
         {oops && <OopsOverlay onClose={() => setOops(false)} />}
         {intervention && (
           <InterventionOverlay
-            mode={intervention}
+            mode={intervention.mode}
+            line={intervention.line}
+            rag={intervention.rag}
             onReturn={() => {
               setHarmfulActive(false);
-              setIntervention(null);
+              setContHarmful(0);
+              closeIntervention();
             }}
-            onContinue={() => setIntervention(null)}
+            onContinue={closeIntervention}
           />
         )}
 

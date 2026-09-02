@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "validate:rag": "node scripts/validate-rag.cjs",
+    "generate:rag-sql": "node scripts/generate-rag-supabase-sql.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.2",
