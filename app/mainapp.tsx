@@ -59,6 +59,7 @@ import {
   CongratsOverlay,
   InterventionOverlay,
   OopsOverlay,
+  RewardedAdOverlay,
   type InterventionMode,
 } from "./components/Overlays";
 import HomeView from "./views/HomeView";
@@ -85,6 +86,7 @@ export default function MainApp({
   const [schedules, setSchedules] = useState<ScheduleEvent[]>([]);
   const [logs, setLogs] = useState<SessionLog[]>([]);
   const [showProAd, setShowProAd] = useState(false);
+  const [showRewardedAd, setShowRewardedAd] = useState(false);
   const proAdChecked = useRef(false);
 
   // timer
@@ -627,7 +629,18 @@ export default function MainApp({
   }
 
   /* ---------------- 설정 / 커스텀 / 일정 ---------------- */
-  async function watchAd() {
+  function watchAd() {
+    if (!state) return;
+    const today = todayStr();
+    const watchedToday = state.adDate === today ? state.adWatchedToday : 0;
+    if (watchedToday >= SHELL.adDailyLimit) {
+      setAlarm("오늘 광고 조개는 다 받았어요 (일 5회)");
+      return;
+    }
+    setShowRewardedAd(true);
+  }
+
+  async function claimAdReward() {
     if (!state) return;
     const next = { ...state };
     const today = todayStr();
@@ -636,6 +649,7 @@ export default function MainApp({
       next.adWatchedToday = 0;
     }
     if (next.adWatchedToday >= SHELL.adDailyLimit) {
+      setShowRewardedAd(false);
       setAlarm("오늘 광고 조개는 다 받았어요 (일 5회)");
       return;
     }
@@ -644,6 +658,7 @@ export default function MainApp({
     next.shellsEarnedTotal += SHELL.adWatch;
     setState(next);
     await saveState(next);
+    setShowRewardedAd(false);
     setAlarm(`광고 시청 완료! 조개 +${SHELL.adWatch} 🐚`);
   }
 
@@ -809,6 +824,13 @@ export default function MainApp({
 
         {outcome && <CongratsOverlay o={outcome} onClose={closeOutcome} />}
         {oops && <OopsOverlay onClose={() => setOops(false)} />}
+        {showRewardedAd && (
+          <RewardedAdOverlay
+            reward={SHELL.adWatch}
+            onClose={() => setShowRewardedAd(false)}
+            onReward={claimAdReward}
+          />
+        )}
         {intervention && (
           <InterventionOverlay
             mode={intervention.mode}

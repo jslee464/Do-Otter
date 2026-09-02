@@ -3380,6 +3380,36 @@ img {
   font-size: 14px;
   font-weight: 700;
 }
+.overlay.rewarded-ad {
+  justify-content: center;
+  background: linear-gradient(180deg, #f6fbff, #e2f1f7);
+  color: #26475c;
+}
+.overlay.rewarded-ad h2 {
+  margin: 8px 0 4px;
+  color: #26475c;
+}
+.overlay.rewarded-ad .msg {
+  color: #597083;
+}
+.overlay.rewarded-ad .continue {
+  margin-top: 18px;
+  background: linear-gradient(180deg, #4f9acb, #2f78ad);
+  box-shadow: 0 11px 20px -17px rgba(37, 98, 146, 0.72);
+}
+.overlay.rewarded-ad .continue:disabled {
+  background: #aac5d5;
+  box-shadow: none;
+}
+.reward-countdown {
+  margin-top: 18px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.78);
+  color: #2f78ad;
+  font-size: 14px;
+  font-weight: 800;
+}
 
 .gcal-panel {
   min-height: 74px;

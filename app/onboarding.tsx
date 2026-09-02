@@ -10,6 +10,7 @@ import {
   saveConsent,
   setOnboarded,
   signIn,
+  signInWithGoogle,
   signUp,
   type BlockedApp,
 } from "../lib/backend";
@@ -268,6 +269,20 @@ function Auth({
     }
   }
 
+  async function continueWithGoogle() {
+    setErr("");
+    setBusy(true);
+    const res = await signInWithGoogle();
+    setBusy(false);
+    if (!res.ok) {
+      setErr(
+        res.error === "demo"
+          ? "Supabase Google 로그인이 아직 설정되지 않았어요."
+          : res.error || "Google 로그인을 시작하지 못했어요."
+      );
+    }
+  }
+
   return (
     <>
       <div className={`ob-scroll auth-scroll ${mode}`}>
@@ -355,7 +370,9 @@ function Auth({
               회원가입하기
             </button>
             <div className="auth-or"><span>또는</span></div>
-            <button className="google-btn"><b>G</b> Google로 계속하기</button>
+            <button className="google-btn" onClick={continueWithGoogle} disabled={busy}>
+              <b>G</b> Google로 계속하기
+            </button>
           </>
         )}
       </div>

@@ -176,6 +176,20 @@ export async function signIn(username: string, password: string): Promise<Result
   }
 }
 
+export async function signInWithGoogle(): Promise<Result> {
+  if (backendMode === "demo" || !supabase) return { ok: false, error: "demo" };
+  const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: redirectTo ? { redirectTo } : undefined,
+    });
+    return error ? { ok: false, error: translate(error.message) } : { ok: true };
+  } catch (error) {
+    return { ok: false, error: translateError(error) };
+  }
+}
+
 export async function signOut() {
   if (backendMode === "demo") {
     setLs(LS.session, null);
