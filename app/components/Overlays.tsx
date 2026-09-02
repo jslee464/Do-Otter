@@ -3,7 +3,6 @@
  *  세션 완료 / 페널티 오버레이 · Chat Pro 페이월
  * ===================================================================== */
 import Image from "next/image";
-import { useEffect, useState } from "react";
 import { IMG, fmtDur, type SessionOutcome } from "../shared";
 import blockedRiver from "../../집중 전 막힌 강.png";
 import { StatusBar } from "./ui";
@@ -91,50 +90,6 @@ export function OopsOverlay({ onClose }: { onClose: () => void }) {
         Otti가 놀랐어요 · 기록에 남았어요
       </div>
       <button className="continue" onClick={onClose}>계속</button>
-    </div>
-  );
-}
-
-export function RewardedAdOverlay({
-  reward,
-  onClose,
-  onReward,
-}: {
-  reward: number;
-  onClose: () => void;
-  onReward: () => void;
-}) {
-  const [remaining, setRemaining] = useState(5);
-  const completed = remaining <= 0;
-
-  useEffect(() => {
-    if (completed) return;
-    const id = window.setInterval(() => {
-      setRemaining((value) => Math.max(0, value - 1));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [completed]);
-
-  return (
-    <div className="overlay rewarded-ad" role="dialog" aria-modal="true">
-      <button className="paywall-x" onClick={onClose} aria-label="광고 닫기">
-        ✕
-      </button>
-      <div className="paywall-badge">Google Ads 테스트</div>
-      <img className="otterbig" src={`${IMG}/otter_study.png`} alt="광고 보상을 기다리는 Otti" />
-      <h2>광고 시청 중</h2>
-      <div className="msg">
-        Flutter 앱에서는 이 화면이
-        <br />
-        AdMob 보상형 광고로 교체돼요.
-      </div>
-      <div className="reward-countdown">{completed ? `조개 +${reward} 받을 수 있어요` : `${remaining}초 남음`}</div>
-      <button className="continue" onClick={onReward} disabled={!completed}>
-        보상 받기
-      </button>
-      <button className="paywall-later" onClick={onClose}>
-        닫기
-      </button>
     </div>
   );
 }
