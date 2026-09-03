@@ -6,35 +6,6 @@ import type { UserState } from "../../lib/backend";
 import riverBefore from "../../집중 전 막힌 강.png";
 import riverFocus from "../../집중중.png";
 
-type OttiMenuIconKind = "study" | "health" | "plan";
-
-function OttiMenuIcon({ kind }: { kind: OttiMenuIconKind }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      {kind === "study" && (
-        <>
-          <path d="M3.5 5.2c2.9-.9 5.4-.3 8.5 1.7v12c-3.1-2-5.6-2.6-8.5-1.7v-12Z" />
-          <path d="M20.5 5.2c-2.9-.9-5.4-.3-8.5 1.7v12c3.1-2 5.6-2.6 8.5-1.7v-12Z" />
-          <path d="M12 6.9v12" />
-        </>
-      )}
-      {kind === "health" && (
-        <>
-          <path d="M12 20S4 15.3 4 9.2A4.3 4.3 0 0 1 11.5 6l.5.7.5-.7A4.3 4.3 0 0 1 20 9.2C20 15.3 12 20 12 20Z" />
-          <path d="M6.7 12h2.2l1.2-2.8 2 5.5 1.4-3 1 1.3h2.8" />
-        </>
-      )}
-      {kind === "plan" && (
-        <>
-          <path d="M8.2 4.5H6.5A1.5 1.5 0 0 0 5 6v14h14V6a1.5 1.5 0 0 0-1.5-1.5h-1.7" />
-          <path d="M9 3h6v3H9z" />
-          <path d="m8 10 1.2 1.2L11 9.4M13 10h3M8 15l1.2 1.2L11 14.4M13 15h3" />
-        </>
-      )}
-    </svg>
-  );
-}
-
 export default function HomeView(p: {
   state: UserState;
   lv: LV;
@@ -187,11 +158,15 @@ export default function HomeView(p: {
 
       <section className="otti-menu">
         <span>집중이 막힐 때</span>
-        <h2>Otti에게 물어보기</h2>
-        <button onClick={openChat}><i className="otti-menu-icon study"><OttiMenuIcon kind="study" /></i><b>공부법 상담<small>암기·복습·집중 전략</small></b><em>›</em></button>
-        <button onClick={openChat}><i className="otti-menu-icon health"><OttiMenuIcon kind="health" /></i><b>건강 정보 상담<small>수면·피로·생활 습관</small></b><em>›</em></button>
-        <button onClick={openChat}><i className="otti-menu-icon plan"><OttiMenuIcon kind="plan" /></i><b>오늘 계획<small>할 일을 작은 단계로 나누기</small></b><em>›</em></button>
-        <button className="ask-input" onClick={openChat}>Otti에게 물어보세요. <em>➤</em></button>
+        <h2>Otti 챗봇</h2>
+        <button className="otti-chat-shortcut" onClick={openChat}>
+          <img src="/images/otter-chat-face.png" alt="" />
+          <b>
+            Otti에게 물어보기
+            <small>공부법, 컨디션, 오늘 계획을 한 곳에서 상담해요.</small>
+          </b>
+          <em>›</em>
+        </button>
         <p>ⓘ 건강 정보는 진료를 대신하지 않아요.</p>
       </section>
     </div>
