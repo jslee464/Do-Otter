@@ -512,7 +512,7 @@ export async function addChat(
  *  PORTONE(아임포트) 결제 — 브라우저 SDK 결제창 + 서버 검증(/api/portone/verify)
  *  프로토타입: 30일 이용권 단건결제 (정기결제 빌링키는 추후 고도화)
  * ===================================================================== */
-async function accessToken(): Promise<string | null> {
+export async function accessToken(): Promise<string | null> {
   if (!supabase) return null;
   const { data } = await supabase.auth.getSession();
   return data.session?.access_token ?? null;

@@ -110,6 +110,18 @@ ${cautionBlock(r)}
 ${userBlock(c)}`;
 }
 
+export function groundedChatSystemPrompt(r: Retrieved, c: OtterContext): string {
+  const base = groundedSystemPrompt(r, c);
+  return `${base}
+
+[Chat Pro RAG 답변 확장]
+- 지금은 사용자가 Chat Pro에서 근거 기반 챗봇 답변을 요청한 상황이야.
+- 검색된 근거가 여러 개 있으면 5~8문장까지 답해도 돼.
+- 답변은 공감/요약 → 근거에서 나온 핵심 이유 2~3개 → 바로 할 행동 2~3개 순서로 자연스럽게 구성해.
+- 출처는 길게 나열하지 말고, 필요한 경우 근거 기관이나 연구명을 짧게 묶어서 언급해.
+- 단, 의료 관련 내용은 길어지더라도 진단·치료 단정 없이 안전 안내와 도움 요청을 우선해.`;
+}
+
 /** 기존 호출부 호환용. 의료 상황이 아닌 경우에도 통합 프롬프트를 사용한다. */
 export function medicalSystemPrompt(r: Retrieved, c: OtterContext): string {
   return groundedSystemPrompt(r, c);

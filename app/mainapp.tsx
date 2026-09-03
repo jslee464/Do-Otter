@@ -6,6 +6,7 @@
  * ===================================================================== */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  accessToken,
   addChat,
   addSchedule,
   addSessionLog,
@@ -348,11 +349,6 @@ export default function MainApp({
 
   /* ---------------- 수달이 LLM ---------------- */
   async function openChat() {
-    // 챗봇은 Chat Pro 전용 — 미구독이면 페이월
-    if (!state?.isChatPro) {
-      setChatLocked(true);
-      return;
-    }
     setChatOpen(true);
     setChatMsgs(await getChat());
   }
@@ -365,9 +361,13 @@ export default function MainApp({
     setChatBusy(true);
     addChat("user", text);
     try {
+      const token = await accessToken();
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           context: buildContext(state, logs, schedules),
           messages: nextMsgs.map((m) => ({ role: m.role, content: m.content })),

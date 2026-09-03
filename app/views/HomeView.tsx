@@ -1,7 +1,7 @@
 "use client";
 
 import { useContext, useState } from "react";
-import { fmt, OpenChat, type LV, type Phase } from "../shared";
+import { fmtFocusRunning, fmtFocusSetup, OpenChat, type LV, type Phase } from "../shared";
 import type { UserState } from "../../lib/backend";
 import riverBefore from "../../집중 전 막힌 강.png";
 import riverFocus from "../../집중중.png";
@@ -61,6 +61,8 @@ export default function HomeView(p: {
   const remain = Math.max(0, totalFocusSeconds - p.studySec);
   const focusProgress = Math.min(1, Math.max(0, p.studySec / totalFocusSeconds));
   const focusProgressAngle = `${focusProgress * 360}deg`;
+  const setFocusMinutes = (nextMinutes: number) =>
+    setMinutes(Math.min(720, Math.max(0, Math.round(nextMinutes))));
 
   if (active) {
     return (
@@ -81,7 +83,7 @@ export default function HomeView(p: {
         </div>
         <div className="focus-remaining">
           <span>남은 시간</span>
-          <b>{fmt(remain)}</b>
+          <b>{fmtFocusRunning(remain)}</b>
         </div>
         <div className="focus-controls">
           <button onClick={p.phase === "paused" ? p.onResume : p.onPause}>
@@ -139,16 +141,48 @@ export default function HomeView(p: {
       <section className="timer-setup-card">
         <div className="timer-caption">집중 시간</div>
         <div className="timer-editor">
-          <b>{String(minutes).padStart(2, "0")}:00</b>
-          <div><button onClick={() => setMinutes(Math.max(5, minutes - 5))}>−5분</button><button onClick={() => setMinutes(minutes + 5)}>+5분</button></div>
+          <b>{fmtFocusSetup(minutes)}</b>
+          <button type="button" onClick={() => setFocusMinutes(0)}>
+            초기화
+          </button>
+        </div>
+        <div className="duration-manual" aria-label="집중 시간 직접 입력">
+          <label>
+            <span>시</span>
+            <input
+              type="number"
+              min={0}
+              max={12}
+              value={Math.floor(minutes / 60)}
+              onChange={(event) =>
+                setFocusMinutes(Number(event.target.value || 0) * 60 + (minutes % 60))
+              }
+            />
+          </label>
+          <label>
+            <span>분</span>
+            <input
+              type="number"
+              min={0}
+              max={59}
+              value={minutes % 60}
+              onChange={(event) =>
+                setFocusMinutes(Math.floor(minutes / 60) * 60 + Number(event.target.value || 0))
+              }
+            />
+          </label>
         </div>
         <div className="minute-picks">
-          {[10, 25, 45, 60].map((m) => (
-            <button key={m} className={minutes === m ? "on" : ""} onClick={() => setMinutes(m)}>{m}분</button>
+          {[5, 10, 30, 60].map((m) => (
+            <button type="button" key={m} onClick={() => setFocusMinutes(minutes + m)}>
+              +{m}분
+            </button>
           ))}
         </div>
         <input aria-label="집중할 일" placeholder="예: 발표 자료 정리" />
-        <button className="hf-primary" onClick={() => p.onSelect(minutes)}>집중 시작</button>
+        <button className="hf-primary" onClick={() => p.onSelect(minutes)} disabled={minutes <= 0}>
+          집중 시작
+        </button>
       </section>
 
       <section className="otti-menu">

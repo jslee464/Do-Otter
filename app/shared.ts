@@ -39,6 +39,17 @@ export const pad = (n: number) => n.toString().padStart(2, "0");
 export function fmt(sec: number) {
   return `${pad(Math.floor(sec / 60))}:${pad(sec % 60)}`;
 }
+export function fmtFocusSetup(minutes: number) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h}:${pad(m)}`;
+}
+export function fmtFocusRunning(sec: number) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return `${h}:${pad(m)}:${pad(s)}`;
+}
 export function fmtDur(sec: number) {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);

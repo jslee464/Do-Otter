@@ -8,7 +8,7 @@ import blockedRiver from "../../집중 전 막힌 강.png";
 import { StatusBar } from "./ui";
 import type { RagMetadata, RagSource } from "../../lib/rag/api-types";
 
-// 챗봇(수달이 대화)은 Chat Pro 전용 — 미구독자에게 보이는 페이월
+// RAG 기반 근거 답변은 Chat Pro 전용 — 미구독자에게 보이는 페이월
 export function ChatProPaywall({
   onSubscribe,
   onClose,
@@ -21,17 +21,17 @@ export function ChatProPaywall({
       <button className="paywall-x" onClick={onClose} aria-label="닫기">
         ✕
       </button>
-      <div className="paywall-badge">💬 Chat Pro 전용</div>
+      <div className="paywall-badge">💬 근거 답변은 Chat Pro</div>
       <img className="otterbig" src={`${IMG}/otter_study.png`} alt="수달이" />
-      <h2>수달이와 대화하기</h2>
+      <h2>근거 기반 상담 열기</h2>
       <div className="msg">
-        수달이랑 1:1로 공부 고민을 나누고
+        수달이랑 공부 고민을 나누고
         <br />
-        내 데이터 기반 맞춤 조언을 받아보세요.
+        논문 근거를 반영한 조언을 받아보세요.
       </div>
       <ul className="paywall-benefits">
-        <li>무제한 대화</li>
-        <li>공부·방해앱 데이터 기반 코칭</li>
+        <li>RAG 기반 근거 검색 답변</li>
+        <li>공부·방해앱 데이터 기반 심화 코칭</li>
         <li>D-day·일정 연계 조언</li>
       </ul>
       <button className="continue" onClick={onSubscribe}>
