@@ -263,8 +263,15 @@ export default function MainApp({
       setAlarm(`구글 일정 ${r.count}개를 가져왔어요 📅`);
     } else if (r.error === "not_connected") {
       setAlarm("먼저 구글 캘린더를 연동해주세요.");
+    } else if (r.error === "refresh_failed") {
+      setAlarm(`구글 인증이 만료됐어요. 다시 연동해주세요.${r.detail ? ` (${r.detail})` : ""}`);
+      setGcalConnected(false);
+    } else if (r.error === "google_calendar_failed") {
+      setAlarm(`구글 캘린더에서 일정을 가져오지 못했어요.${r.detail ? ` (${r.detail})` : ""}`);
+    } else if (r.error?.includes("schedule_")) {
+      setAlarm(`일정을 저장하지 못했어요.${r.detail ? ` (${r.detail})` : ""}`);
     } else {
-      setAlarm("동기화에 실패했어요. 잠시 후 다시 시도해주세요.");
+      setAlarm(`동기화에 실패했어요.${r.detail ? ` (${r.detail})` : ""}`);
     }
     setGcalBusy(false);
   }

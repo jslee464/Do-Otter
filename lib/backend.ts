@@ -596,7 +596,7 @@ export async function gcalConnectUrl(): Promise<{ ok: boolean; url?: string; err
   return d.url ? { ok: true, url: d.url } : { ok: false, error: d.error || "failed" };
 }
 
-export async function gcalSync(): Promise<{ ok: boolean; count?: number; error?: string }> {
+export async function gcalSync(): Promise<{ ok: boolean; count?: number; error?: string; detail?: string }> {
   if (backendMode === "demo") return { ok: false, error: "demo" };
   const t = await accessToken();
   if (!t) return { ok: false, error: "no_session" };
@@ -607,7 +607,7 @@ export async function gcalSync(): Promise<{ ok: boolean; count?: number; error?:
   const d = await res.json();
   return typeof d.count === "number"
     ? { ok: true, count: d.count }
-    : { ok: false, error: d.error || "failed" };
+    : { ok: false, error: d.error || "failed", detail: d.detail };
 }
 
 /* =====================================================================

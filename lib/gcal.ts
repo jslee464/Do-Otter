@@ -51,7 +51,16 @@ export async function refreshAccessToken(refreshToken: string): Promise<string |
       grant_type: "refresh_token",
     }),
   });
-  const d = await res.json();
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      typeof d?.error_description === "string"
+        ? d.error_description
+        : typeof d?.error === "string"
+          ? d.error
+          : `Google token error ${res.status}`;
+    throw new Error(message);
+  }
   return d.access_token ?? null;
 }
 
