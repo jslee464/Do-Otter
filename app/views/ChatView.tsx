@@ -49,7 +49,7 @@ export default function ChatView({
           ‹
         </button>
         <div>
-          <div className="chat-name">Otti 공부 상담</div>
+          <div className="chat-name">Otti 챗봇</div>
           <div className="chat-status">● 집중 계획을 함께 세워요</div>
         </div>
         <button

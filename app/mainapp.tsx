@@ -186,6 +186,8 @@ export default function MainApp({
   // 첫 공부를 마친 사용자가 앱을 다시 열었을 때만 Pro 안내 표시
   useEffect(() => {
     if (!state || preview || proAdChecked.current) return;
+    const hash = window.location.hash;
+    if (hash.startsWith("#screen-") || hash.startsWith("#preview-")) return;
     proAdChecked.current = true;
     if (state.sessionCount < 1) return;
 
@@ -765,7 +767,6 @@ export default function MainApp({
             tapLine={tapLine}
           />
         )}
-        {tab === "impact" && <ImpactView state={state} />}
         {tab === "calendar" && (
           <CalendarView
             state={state}
