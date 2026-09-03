@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
   let paymentId = "";
-  let plan: Plan = "chatpro";
+  let plan: Plan = "pro";
   try {
     const body = await req.json();
     paymentId = body.paymentId;
@@ -36,10 +36,10 @@ export async function POST(req: Request) {
   if (!admin) return NextResponse.json({ ok: false, error: "no_admin" }, { status: 500 });
 
   const until = new Date(Date.now() + PLANS[plan].days * 86400000).toISOString();
-  const col = plan === "chatpro" ? "chatpro_until" : "pro_until";
+  const entitlement = { pro_until: until, chatpro_until: until };
   const { data: profile, error } = await admin
     .from("profiles")
-    .update({ [col]: until })
+    .update(entitlement)
     .eq("id", userId)
     .select("id")
     .maybeSingle();
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       userId.slice(0, 8);
     const { error: upsertError } = await admin
       .from("profiles")
-      .upsert({ id: userId, username, [col]: until }, { onConflict: "id" });
+      .upsert({ id: userId, username, ...entitlement }, { onConflict: "id" });
     if (upsertError) {
       return NextResponse.json({ ok: false, error: upsertError.message }, { status: 500 });
     }

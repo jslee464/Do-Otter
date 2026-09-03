@@ -3465,7 +3465,7 @@ img {
 .chat-peek { display: block; width: 94px; height: 69px; object-fit: contain; margin: 2px auto -17px; }
 .chat-timer-start { position: relative; width: 100%; height: 48px; border-radius: 9px; background: var(--hf-brown); color: white; font-size: 16px; font-weight: 800; }
 
-/* Chat Pro paywall */
+/* Pro 수달 paywall */
 .overlay.paywall {
   justify-content: center;
   background: linear-gradient(180deg, #f5effc, #e3d4f3);

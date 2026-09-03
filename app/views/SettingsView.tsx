@@ -20,7 +20,7 @@ export default function SettingsView(p: {
   onAd: () => void;
   onCustomize: () => void;
   onImpact: () => void;
-  onCheckout: (plan: "pro" | "chatpro") => void;
+  onCheckout: (plan: "pro" | "chatpro", after?: "chat") => void;
   onSignOut: () => void;
   dark: boolean;
   onDarkChange: (value: boolean) => void;
@@ -48,9 +48,6 @@ export default function SettingsView(p: {
         <SettingRow icon={<SettingsFeatureIcon kind="location" />} iconClass="setting-icon-blue" title="위치 기반 추천" value={location ? "사용 중" : "꺼짐"} onClick={() => setLocation(!location)} />
         <SettingRow icon="👑" title="Pro 수달" value={p.state.isPro ? "이용 중" : "구독하기"} onClick={() => {
           if (!p.state.isPro) p.onCheckout("pro");
-        }} />
-        <SettingRow icon="💬" title="수달 Chat Pro" value={p.state.isChatPro ? "이용 중" : "구독하기"} onClick={() => {
-          if (!p.state.isChatPro) p.onCheckout("chatpro");
         }} />
       </div>
 

@@ -21,7 +21,7 @@ import { getUserId, supabaseAdmin } from "../../../lib/serverSupabase";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function hasActiveChatPro(req: NextRequest): Promise<boolean> {
+async function hasActivePro(req: NextRequest): Promise<boolean> {
   try {
     const userId = await getUserId(req);
     if (!userId) return false;
@@ -29,10 +29,14 @@ async function hasActiveChatPro(req: NextRequest): Promise<boolean> {
     if (!admin) return false;
     const { data } = await admin
       .from("profiles")
-      .select("chatpro_until")
+      .select("pro_until, chatpro_until")
       .eq("id", userId)
       .maybeSingle();
-    return !!data?.chatpro_until && new Date(data.chatpro_until).getTime() > Date.now();
+    const now = Date.now();
+    return (
+      (!!data?.pro_until && new Date(data.pro_until).getTime() > now) ||
+      (!!data?.chatpro_until && new Date(data.chatpro_until).getTime() > now)
+    );
   } catch {
     return false;
   }
@@ -49,7 +53,7 @@ export async function POST(req: NextRequest) {
   const history = (messages ?? []).slice(-12); // 최근 12개만
   const lastUser =
     [...history].reverse().find((m) => m.role === "user")?.content ?? "";
-  const chatPro = await hasActiveChatPro(req);
+  const pro = await hasActivePro(req);
 
   // ── 1) 응급 차단: LLM을 아예 거치지 않는다 (A58 / R11, R12) ──────────
   if (isEmergency(lastUser)) {
@@ -57,8 +61,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       reply: emergencyReply(),
       situationId: "A58",
-      evidenceIds: chatPro ? ["R11", "R12"] : [],
-      sources: chatPro && emergencyHit ? evidenceSources(emergencyHit) : [],
+      evidenceIds: pro ? ["R11", "R12"] : [],
+      sources: pro && emergencyHit ? evidenceSources(emergencyHit) : [],
       generation: "고정문구",
       emergency: true,
     });
@@ -66,14 +70,14 @@ export async function POST(req: NextRequest) {
 
   try {
     // ── 2) 상황 분류 → RAG 룩업 ──────────────────────────────────────
-    const sid = chatPro ? await classifySituation(lastUser) : null;
+    const sid = pro ? await classifySituation(lastUser) : null;
     const hit =
-      chatPro && sid
+      pro && sid
         ? retrieve(sid, { query: lastUser, maxEvidence: 4 })
         : null;
 
     // ── 3) 통합 근거 경로: 건강은 강한 가드레일, 코칭은 근거 기반 행동 제안 ──
-    if (chatPro && hit && hit.evidence.length > 0) {
+    if (pro && hit && hit.evidence.length > 0) {
       try {
         const reply = await callDeepseek(
           [
@@ -112,7 +116,7 @@ export async function POST(req: NextRequest) {
           role: "system",
           content:
             chatSystemPrompt(context) +
-            "\n\n무료 챗봇 경로에서는 RAG/논문 검색 결과를 사용하지 않는다. 사용자가 논문 근거나 출처 기반 답변을 요구하면 Chat Pro에서 근거 기반 답변을 볼 수 있다고 짧게 안내하고, 일반적인 공부 조언은 계속 제공해.",
+            "\n\n무료 챗봇 경로에서는 RAG/논문 검색 결과를 사용하지 않는다. 사용자가 논문 근거나 출처 기반 답변을 요구하면 Pro 수달에서 근거 기반 답변을 볼 수 있다고 짧게 안내하고, 일반적인 공부 조언은 계속 제공해.",
         },
         ...history.map((m) => ({ role: m.role, content: m.content })),
       ],

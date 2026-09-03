@@ -56,7 +56,7 @@ import {
 } from "./shared";
 import { BottomNav, StatusBar } from "./components/ui";
 import {
-  ChatProPaywall,
+  ProOtterPaywall,
   CongratsOverlay,
   InterventionOverlay,
   OopsOverlay,
@@ -126,7 +126,7 @@ export default function MainApp({
 
   // 수달이 LLM (챗봇 + 홈 터치 멘트)
   const [chatOpen, setChatOpen] = useState(false);
-  const [chatLocked, setChatLocked] = useState(false); // Chat Pro 미구독 → 페이월
+  const [chatLocked, setChatLocked] = useState(false); // Pro 수달 미구독 → 페이월
   const [chatMsgs, setChatMsgs] = useState<ChatRow[]>([]);
   const [chatBusy, setChatBusy] = useState(false);
   const [tapLine, setTapLine] = useState<string | null>(null);
@@ -228,17 +228,17 @@ export default function MainApp({
     if (screen === 22) setIntervention({ mode: "sheet" });
   }, []);
 
-  async function doCheckout(plan: "pro" | "chatpro") {
+  async function doCheckout(plan: "pro" | "chatpro", after?: "chat") {
     setAlarm("결제창을 여는 중…");
     const r = await startCheckout(plan);
     if (r.ok) {
       await refresh(); // 이용권 반영
-      if (plan === "chatpro") {
+      if (after === "chat") {
         setChatLocked(false);
         setChatOpen(true);
         setChatMsgs(await getChat());
       }
-      setAlarm(plan === "chatpro" ? "Chat Pro 결제 완료! 수달이랑 대화해봐요 💬" : "Pro 수달 결제 완료! 👑");
+      setAlarm(after === "chat" ? "Pro 수달 결제 완료! 수달이랑 대화해봐요 💬" : "Pro 수달 결제 완료! 👑");
     } else if (r.error === "not_configured")
       setAlarm("결제가 아직 설정되지 않았어요 (관리자 PortOne 키 등록 필요)");
     else if (r.error === "demo")
@@ -858,10 +858,10 @@ export default function MainApp({
         )}
 
         {chatLocked && (
-          <ChatProPaywall
+          <ProOtterPaywall
             onSubscribe={() => {
               setChatLocked(false);
-              doCheckout("chatpro");
+              doCheckout("pro", "chat");
             }}
             onClose={() => setChatLocked(false)}
           />

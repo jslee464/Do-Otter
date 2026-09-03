@@ -1,6 +1,6 @@
 "use client";
 /* =====================================================================
- *  세션 완료 / 페널티 오버레이 · Chat Pro 페이월
+ *  세션 완료 / 페널티 오버레이 · Pro 수달 페이월
  * ===================================================================== */
 import Image from "next/image";
 import { IMG, fmtDur, type SessionOutcome } from "../shared";
@@ -8,8 +8,8 @@ import blockedRiver from "../../집중 전 막힌 강.png";
 import { StatusBar } from "./ui";
 import type { RagMetadata, RagSource } from "../../lib/rag/api-types";
 
-// RAG 기반 근거 답변은 Chat Pro 전용 — 미구독자에게 보이는 페이월
-export function ChatProPaywall({
+// RAG 기반 근거 답변은 Pro 수달 전용 — 미구독자에게 보이는 페이월
+export function ProOtterPaywall({
   onSubscribe,
   onClose,
 }: {
@@ -21,7 +21,7 @@ export function ChatProPaywall({
       <button className="paywall-x" onClick={onClose} aria-label="닫기">
         ✕
       </button>
-      <div className="paywall-badge">💬 근거 답변은 Chat Pro</div>
+      <div className="paywall-badge">👑 근거 답변은 Pro 수달</div>
       <img className="otterbig" src={`${IMG}/otter_study.png`} alt="수달이" />
       <h2>근거 기반 상담 열기</h2>
       <div className="msg">
@@ -35,7 +35,7 @@ export function ChatProPaywall({
         <li>D-day·일정 연계 조언</li>
       </ul>
       <button className="continue" onClick={onSubscribe}>
-        Chat Pro 구독하기
+        Pro 수달 구독하기
       </button>
       <button className="paywall-later" onClick={onClose}>
         나중에 할게요

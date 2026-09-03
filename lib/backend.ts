@@ -38,7 +38,7 @@ export type UserState = {
   ownedItems: string[]; // 수달 커스텀: 보유 아이템
   equippedItems: string[]; // 수달 커스텀: 착용 아이템
   isPro: boolean; // Pro 수달 구독 중
-  isChatPro: boolean; // 수달 Chat Pro 구독 중
+  isChatPro: boolean; // legacy: Pro 수달 RAG 권한과 동일하게 유지
 };
 
 export type ScheduleEvent = {
@@ -242,15 +242,18 @@ export async function loadState(): Promise<UserState | null> {
     .select("ach_id")
     .eq("user_id", id);
   const unlocked = (achs ?? []).map((r: any) => r.ach_id);
-  // 구독 상태 (Stripe webhook 이 갱신한 profiles 컬럼)
+  // 구독 상태 (PortOne 검증 라우트가 갱신한 profiles 컬럼)
   const { data: prof } = await supabase!
     .from("profiles")
     .select("pro_until, chatpro_until")
     .eq("id", id)
     .single();
   const now = Date.now();
-  const isPro = !!prof?.pro_until && new Date(prof.pro_until).getTime() > now;
-  const isChatPro = !!prof?.chatpro_until && new Date(prof.chatpro_until).getTime() > now;
+  const hasProAccess =
+    (!!prof?.pro_until && new Date(prof.pro_until).getTime() > now) ||
+    (!!prof?.chatpro_until && new Date(prof.chatpro_until).getTime() > now);
+  const isPro = hasProAccess;
+  const isChatPro = hasProAccess;
   if (!data) return { ...defaultState(who), unlocked, isPro, isChatPro };
   return {
     username: who,
@@ -519,7 +522,7 @@ export async function accessToken(): Promise<string | null> {
 }
 
 const PLAN_INFO = {
-  chatpro: { amount: 2900, orderName: "수달 Chat Pro 30일 이용권" },
+  chatpro: { amount: 2900, orderName: "Pro 수달 30일 이용권" },
   pro: { amount: 4900, orderName: "Pro 수달 30일 이용권" },
 } as const;
 

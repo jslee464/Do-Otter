@@ -13,7 +13,7 @@ export const PORTONE_CONFIGURED = Boolean(
 
 export type Plan = "pro" | "chatpro";
 export const PLANS: Record<Plan, { amount: number; orderName: string; days: number }> = {
-  chatpro: { amount: 2900, orderName: "수달 Chat Pro 30일 이용권", days: 30 },
+  chatpro: { amount: 2900, orderName: "Pro 수달 30일 이용권", days: 30 },
   pro: { amount: 4900, orderName: "Pro 수달 30일 이용권", days: 30 },
 };
 
